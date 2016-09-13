@@ -69,7 +69,11 @@ export default class DashCard extends Component {
     render() {
         const { dashcard, dashcardData, cardDurations, parameterValues, isEditing, isEditingParameter, onAddSeries, onRemove } = this.props;
 
-        const cards = [dashcard.card].concat(dashcard.series || []);
+        const mainCard = {
+            ...dashcard.card,
+            visualization_settings: { ...dashcard.card.visualization_settings, ...dashcard.visualization_settings }
+        };
+        const cards = [mainCard].concat(dashcard.series || []);
         const series = cards
             .map(card => ({
                 ...getIn(dashcardData, [dashcard.id, card.id]),
@@ -129,6 +133,7 @@ export default class DashCard extends Component {
                             visualization={CardVisualization}
                             onRemove={onRemove}
                             onAddSeries={onAddSeries}
+                            onUpdateVisualizationSettings={this.props.onUpdateVisualizationSettings}
                         /> : undefined
                     }
                     onUpdateVisualizationSetting={this.props.onUpdateVisualizationSetting}
@@ -145,7 +150,7 @@ const DashCardActionButtons = ({ series, visualization, onRemove, onAddSeries, o
             <AddSeriesButton series={series} onAddSeries={onAddSeries} />
         }
         { onUpdateVisualizationSettings &&
-            <ChartSettingsButton series={series} onChange={onUpdateVisualizationSettings} />
+            <ChartSettingsButton series={series} onUpdateVisualizationSettings={onUpdateVisualizationSettings} />
         }
         <RemoveButton onRemove={onRemove} />
     </span>

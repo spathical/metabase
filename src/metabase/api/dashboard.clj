@@ -71,6 +71,7 @@
   (check-400 (db/exists? Card :id cardId))
   (let [defaults       {:dashboard_id id
                         :card_id      cardId
+                        :visualization_settings {}
                         :creator_id   *current-user-id*
                         :series       (or series [])}
         dashboard-card (-> (merge dashboard-card defaults)

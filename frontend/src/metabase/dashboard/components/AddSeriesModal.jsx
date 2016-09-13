@@ -152,7 +152,7 @@ export default class AddSeriesModal extends Component {
                 }
                 if (card.dataset_query.type === "query") {
                     if (!CardVisualization.seriesAreCompatible(initialSeries,
-                        { card: card, data: { cols: getQueryColumns(card, databases) } }
+                        { card: card, data: { cols: getQueryColumns(card, databases), rows: [] } }
                     )) {
                         return false;
                     }

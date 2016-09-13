@@ -13,6 +13,8 @@ import {
     getFriendlyName
 } from "metabase/visualizations/lib/utils";
 
+import { getSettings } from "metabase/lib/visualization_settings";
+
 import { MinRowsError, ChartSettingsError } from "metabase/visualizations/lib/errors";
 
 import crossfilter from "crossfilter";
@@ -39,18 +41,34 @@ export default class LineAreaBarChart extends Component {
     }
 
     static seriesAreCompatible(initialSeries, newSeries) {
-        if (newSeries.card.dataset_query.type === "query") {
-            // no bare rows
-            if (newSeries.card.dataset_query.query.aggregation[0] === "rows") {
-                return false;
-            }
-            // must have one and only one breakout
-            if (newSeries.card.dataset_query.query.breakout.length !== 1) {
-                return false;
-            }
+        let initialSettings = getSettings([initialSeries]);
+        let newSettings = getSettings([newSeries]);
+
+        let initialDimensions = getColumnsFromNames(initialSeries.data.cols, initialSettings["graph.dimensions"]);
+        let newDimensions = getColumnsFromNames(newSeries.data.cols, newSettings["graph.dimensions"]);
+        let newMetrics = getColumnsFromNames(newSeries.data.cols, newSettings["graph.metrics"]);
+
+        // must have at least one dimension and one metric
+        if (newDimensions.length === 0 || newMetrics.length === 0) {
+            return false;
         }
 
-        return columnsAreCompatible(initialSeries.data.cols, newSeries.data.cols);
+        // all metrics must be numeric
+        if (!_.all(newMetrics, isNumeric)) {
+            return false;
+        }
+
+        // both or neither primary dimension must be dates
+        if (isDate(initialDimensions[0]) !== isDate(newDimensions[0])) {
+            return false;
+        }
+
+        // both or neither primary dimension must be numeric
+        if (isNumeric(initialDimensions[0]) !== isNumeric(newDimensions[0])) {
+            return false;
+        }
+
+        return true;
     }
 
     constructor(props, context) {
@@ -82,68 +100,9 @@ export default class LineAreaBarChart extends Component {
     }
 
     transformSeries(newProps) {
-        let { series, settings } = newProps;
-        let nextState = {
-            series: series,
-        };
-        let s = series && series.length === 1 && series[0];
-        if (s && s.data) {
-            const { cols, rows } = s.data;
-
-            const dimensions = settings["graph.dimensions"].filter(d => d != null);
-            const metrics = settings["graph.metrics"].filter(d => d != null);
-            const dimensionIndexes = dimensions.map(dimensionName =>
-                _.findIndex(cols, (col) => col.name === dimensionName)
-            );
-            const metricIndexes = metrics.map(metricName =>
-                _.findIndex(cols, (col) => col.name === metricName)
-            );
-
-            const bubbleIndex = settings["scatter.bubble"] && _.findIndex(cols, (col) => col.name === settings["scatter.bubble"]);
-            const extraIndexes = bubbleIndex && bubbleIndex >= 0 ? [bubbleIndex] : [];
-
-            if (dimensions.length > 1) {
-                const dataset = crossfilter(rows);
-                const [dimensionIndex, seriesIndex] = dimensionIndexes;
-                const rowIndexes = [dimensionIndex].concat(metricIndexes, extraIndexes);
-                const seriesGroup = dataset.dimension(d => d[seriesIndex]).group()
-                nextState.series = seriesGroup.reduce(
-                    (p, v) => p.concat([rowIndexes.map(i => v[i])]),
-                    (p, v) => null, () => []
-                ).all().map(o => ({
-                    card: {
-                        ...s.card,
-                        id: null,
-                        name: o.key
-                    },
-                    data: {
-                        rows: o.value,
-                        cols: rowIndexes.map(i => s.data.cols[i])
-                    }
-                }));
-            } else {
-                const dimensionIndex = dimensionIndexes[0];
-
-                nextState.series = metricIndexes.map(metricIndex => {
-                    const col = cols[metricIndex];
-                    const rowIndexes = [dimensionIndex].concat(metricIndex, extraIndexes);
-                    return {
-                        card: {
-                            ...s.card,
-                            id: null,
-                            name: getFriendlyName(col)
-                        },
-                        data: {
-                            rows: rows.map(row =>
-                                rowIndexes.map(i => row[i])
-                            ),
-                            cols: rowIndexes.map(i => s.data.cols[i])
-                        }
-                    };
-                });
-            }
-        }
-        this.setState(nextState);
+        this.setState({
+            series: [].concat(...newProps.series.map(transformSingleSeries))
+        });
     }
 
     getHoverClasses() {
@@ -216,31 +175,40 @@ export default class LineAreaBarChart extends Component {
 
         const settings = this.getSettings();
 
-        const isMultiseries = this.state.series.length > 1;
-        const isDashboardMultiseries = this.props.series.length > 1;
-        const isCardMultiseries = isMultiseries && !isDashboardMultiseries;
+        let titleHeaderSeries, multiseriesHeaderSeries;
+
+        // only show the title if there's a single card
+        if (this.props.series.length === 1) {
+            titleHeaderSeries = this.props.series;
+        }
+        // always show multiseries headers if there is more than one series
+        if (this.state.series.length > 1) {
+            if (this.state.series.length > this.props.series.length) {
+                // if there are any card multiseries use the expanded series for the titles
+                multiseriesHeaderSeries = this.state.series;
+            } else {
+                // if there are no card multiseries then use the original cards
+                multiseriesHeaderSeries = this.props.series;
+            }
+        }
 
         return (
             <div className={cx("flex flex-column p1", this.getHoverClasses(), this.props.className)}>
-                {/* This is always used to show the original card titles/links + action buttons */}
-                { isDashboard &&
+                { titleHeaderSeries && isDashboard &&
                     <LegendHeader
                         className="flex-no-shrink"
-                        series={this.props.series}
+                        series={titleHeaderSeries}
                         actionButtons={actionButtons}
-                        hovered={hovered}
-                        onHoverChange={this.props.onHoverChange}
-                        settings={settings}
                     />
                 }
-                {/* This only shows transformed card multiseries titles */}
-                { isCardMultiseries &&
+                { multiseriesHeaderSeries &&
                     <LegendHeader
                         className="flex-no-shrink"
-                        series={series}
+                        series={multiseriesHeaderSeries}
+                        settings={settings}
                         hovered={hovered}
                         onHoverChange={this.props.onHoverChange}
-                        settings={settings}
+                        actionButtons={!titleHeaderSeries && isDashboard ? actionButtons : null}
                     />
                 }
                 <CardRenderer
@@ -257,21 +225,68 @@ export default class LineAreaBarChart extends Component {
     }
 }
 
-function columnsAreCompatible(colsA, colsB) {
-    if (!(colsA && colsB && colsA.length >= 2 && colsB.length >= 2)) {
-        return false;
+function getColumnsFromNames(cols, names) {
+    if (!names) {
+        return [];
     }
-    // second column must be numeric
-    if (!isNumeric(colsA[1]) || !isNumeric(colsB[1])) {
-        return false;
+    return names.map(name => _.findWhere(cols, { name }));
+}
+
+function transformSingleSeries(s) {
+    const { card, data } = s;
+    const { cols, rows } = data;
+    const settings = getSettings([s]);
+
+    const dimensions = settings["graph.dimensions"].filter(d => d != null);
+    const metrics = settings["graph.metrics"].filter(d => d != null);
+    const dimensionIndexes = dimensions.map(dimensionName =>
+        _.findIndex(cols, (col) => col.name === dimensionName)
+    );
+    const metricIndexes = metrics.map(metricName =>
+        _.findIndex(cols, (col) => col.name === metricName)
+    );
+
+    const bubbleIndex = settings["scatter.bubble"] && _.findIndex(cols, (col) => col.name === settings["scatter.bubble"]);
+    const extraIndexes = bubbleIndex && bubbleIndex >= 0 ? [bubbleIndex] : [];
+
+    if (dimensions.length > 1) {
+        const dataset = crossfilter(rows);
+        const [dimensionIndex, seriesIndex] = dimensionIndexes;
+        const rowIndexes = [dimensionIndex].concat(metricIndexes, extraIndexes);
+        const seriesGroup = dataset.dimension(d => d[seriesIndex]).group()
+        return seriesGroup.reduce(
+            (p, v) => p.concat([rowIndexes.map(i => v[i])]),
+            (p, v) => null, () => []
+        ).all().map(o => ({
+            card: {
+                ...card,
+                id: null,
+                name: o.key
+            },
+            data: {
+                rows: o.value,
+                cols: rowIndexes.map(i => cols[i])
+            }
+        }));
+    } else {
+        const dimensionIndex = dimensionIndexes[0];
+
+        return metricIndexes.map(metricIndex => {
+            const col = cols[metricIndex];
+            const rowIndexes = [dimensionIndex].concat(metricIndex, extraIndexes);
+            return {
+                card: {
+                    ...card,
+                    id: null,
+                    name: getFriendlyName(col)
+                },
+                data: {
+                    rows: rows.map(row =>
+                        rowIndexes.map(i => row[i])
+                    ),
+                    cols: rowIndexes.map(i => cols[i])
+                }
+            };
+        });
     }
-    // both or neither must be dates
-    if (isDate(colsA[0]) !== isDate(colsB[0])) {
-        return false;
-    }
-    // both or neither must be numeric
-    if (isNumeric(colsA[0]) !== isNumeric(colsB[0])) {
-        return false;
-    }
-    return true;
 }

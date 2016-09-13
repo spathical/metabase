@@ -199,6 +199,13 @@ export default class DashboardGrid extends Component {
         });
     }
 
+    onUpdateVisualizationSettings(dc, settings) {
+        this.props.setDashCardVisualizationSettings({
+            id: dc.id,
+            settings: settings
+        });
+    }
+
     renderDashCard(dc, isMobile) {
         return (
             <DashCard
@@ -215,6 +222,7 @@ export default class DashboardGrid extends Component {
                 onRemove={this.onDashCardRemove.bind(this, dc)}
                 onAddSeries={this.onDashCardAddSeries.bind(this, dc)}
                 onUpdateVisualizationSetting={this.onUpdateVisualizationSetting.bind(this, dc)}
+                onUpdateVisualizationSettings={this.onUpdateVisualizationSettings.bind(this, dc)}
             />
         )
     }

@@ -38,6 +38,7 @@
       {"include": {"file": "migrations/037_add_query_hash_and_indexes.yaml"}},
       {"include": {"file": "migrations/038_getting_started_guide.yaml"}},
       {"include": {"file": "migrations/039_add_user_google_auth_column.yaml"}},
-      {"include": {"file": "migrations/041_drop_field_field_type.yaml"}}
+      {"include": {"file": "migrations/041_drop_field_field_type.yaml"}},
+      {"include": {"file": "migrations/042_add_dashcard_visualization_settings_field.yaml"}}
   ]
 }
