@@ -70,21 +70,6 @@ export default class VisualizationSettings extends React.Component {
         );
     }
 
-    renderVisualizationSettings() {
-        let { card } = this.props;
-        let visualization = visualizations.get(card.display);
-        return (
-            visualization.settings && visualization.settings.map((VisualizationSetting, index) =>
-                <VisualizationSetting
-                    key={index}
-                    settings={card.visualization_settings}
-                    onUpdateVisualizationSetting={this.props.onUpdateVisualizationSetting}
-                    onUpdateVisualizationSettings={this.props.onUpdateVisualizationSettings}
-                />
-            )
-        );
-    }
-
     render() {
         if (this.props.result && this.props.result.error === undefined) {
             return (
@@ -100,7 +85,6 @@ export default class VisualizationSettings extends React.Component {
                             onChange={this.props.onUpdateVisualizationSettings}
                         />
                     </ModalWithTrigger>
-                    {this.renderVisualizationSettings()}
                 </div>
             );
         } else {
