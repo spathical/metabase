@@ -97,6 +97,7 @@ export default class GridPermssions extends Component {
             sourceType: 'database'
         };
         this.getSchemasForDB = this.getSchemasForDB.bind(this)
+        this.back = this.back.bind(this)
     }
 
     getSchemasForDB (dbID) {
@@ -169,6 +170,10 @@ export default class GridPermssions extends Component {
         }
     }
 
+    back () {
+        this.setState({ sources: null, sourceType: 'database' })
+    }
+
     render() {
         let { location: { pathname }, params: { databaseID, groupID, schema }, databases, groups, schemaPermissions } = this.props;
 
@@ -193,6 +198,7 @@ export default class GridPermssions extends Component {
                         sources={sources}
                         detailsFn={this.getSchemasForDB}
                         sourceType={this.state.sourceType}
+                        back={this.back} 
                       />
                       {
                           groups && groups.map((group, index) =>
@@ -207,7 +213,10 @@ export default class GridPermssions extends Component {
                                       PermissionsAPI.schemaPermissions
                                   }
                                   resolveFunction={
+                                      this.state.sourceType === 'database' ?
                                       (details) => details.databases
+                                      :
+                                      (details) => console.log('details', details)
                                   }
                                   showSQL={this.state.sourceType === 'database'}
                               />
@@ -318,9 +327,10 @@ GroupPermissionCell.defaultProps = {
     }
 }
 
-const SourceList = ({ sources, sourceType, detailsFn }) =>
+const SourceList = ({ sources, sourceType, detailsFn, back }) =>
   <div>
       <div className="flex">
+          { sourceType === 'tables' && <a onClick={() => back() }>Back</a> }
           <Icon name={sourceType} />
           <h3>{sourceType}</h3>
       </div>
