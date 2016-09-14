@@ -248,7 +248,7 @@ const CELL_STYLES = {
 
 const GroupPermissionCell = ({ icon, permission, changePermission }) =>
     <div
-        className="flex align-center justify-center"
+        className="flex flex-full align-center justify-center"
         style={Object.assign({}, CELL_STYLES, { backgroundColor: bgColorForPermission[permission.access_type]})}
    >
         <Icon
@@ -270,7 +270,7 @@ const SourceList = ({ sources, sourceType, detailsFn }) =>
   <div>
       <div className="flex">
           <Icon name={sourceType} />
-          <h3>Databases</h3>
+          <h3>{sourceType}</h3>
       </div>
       { sources && sources.map(source =>
           <div
@@ -301,7 +301,10 @@ class GroupDetail extends Component {
 
     componentDidMount () {
         PermissionsAPI.groupDetails({ id: this.props.group.id }).then(
-            (details) => this.setState({ databases: details.databases })
+            (details) => {
+                console.log('details', details)
+                this.setState({ databases: details.databases })
+            }
         )
     }
 
@@ -309,7 +312,7 @@ class GroupDetail extends Component {
        const { sources, group, showSQL } = this.props
        const { databases } = this.state
        return (
-            <div className="border-right" style={{ minWidth: 180 }}>
+            <div className="border-right" style={{ minWidth: 330 }}>
                 <h3 className="text-centered full my1">{ group.name }</h3>
                 <div className="flex border-bottom border-top">
                     { showSQL && (
