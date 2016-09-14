@@ -14,8 +14,9 @@ import DatabaseGroupSelector from "./DatabaseGroupSelector.jsx";
 import Permissions from "./Permissions.jsx";
 import Icon from "metabase/components/Icon.jsx";
 import PopoverWithTrigger from "metabase/components/PopoverWithTrigger.jsx";
+import Tooltip from "metabase/components/Tooltip.jsx";
 
-const PermissionsAPI = new AngularResourceProxy("Permissions", ["groupDetails", "databaseDetails", "databasePermissions", "schemaPermissions", "updateSchemaPermissions", "createTablePermissions", "deleteTablePermissions"]);
+const PermissionsAPI = new AngularResourceProxy("Permissions", ["groupDetails", "databaseDetails", "databasePermissions", "schemaPermissions", "updateSchemaPermissions", "createTablePermissions", "deleteTablePermissions", "updateDatabasePermissions"]);
 
 const MetadataAPI = new AngularResourceProxy("Metabase", ["db_metadata"]);
 
@@ -199,7 +200,15 @@ export default class GridPermssions extends Component {
                                   group={group}
                                   sources={sources}
                                   key={index}
-                                  fetchDetails={this.props.fetchGroupDetails}
+                                  fetchDetails={
+                                      this.state.sourceType === 'database' ?
+                                      PermissionsAPI.groupDetails
+                                      :
+                                      PermissionsAPI.schemaPermissions
+                                  }
+                                  resolveFunction={
+                                      (details) => details.databases
+                                  }
                                   showSQL={this.state.sourceType === 'database'}
                               />
                          )
@@ -246,18 +255,61 @@ const CELL_STYLES = {
     padding: 70
 }
 
-const GroupPermissionCell = ({ icon, permission, changePermission }) =>
-    <div
-        className="flex flex-full align-center justify-center"
-        style={Object.assign({}, CELL_STYLES, { backgroundColor: bgColorForPermission[permission.access_type]})}
-   >
-        <Icon
-            name={icon ? icon : iconForPermission[permission.access_type]}
-            width='28'
-            height='28'
-            className={iconColorsForPermission[permission.access_type]}
-        />
+const accessOptions = [
+    'unrestricted',
+    'all_schemas',
+    'no_access'
+]
+
+const accessOptionNames = {
+    'unrestricted': 'Unrestricted access',
+    'all_schemas': 'No SQL access',
+    'some_schemas': 'Some schemas',
+    'no_access': 'No access'
+}
+
+const AccessOption = ({ id, icon, access, accessName, setAccess }) =>
+    <div className="flex py2 px2 align-center" onClick={ () => setAccess(access, id) }>
+        <Icon name={icon} className={cx('mr1', iconColorsForPermission[access] )} />
+        { accessName }
     </div>
+
+const AccessOptionList = ({ id, setAccess }) =>
+    <ul className="py2">
+        { accessOptions.map((option, index) =>
+            <li key={index}>
+                <AccessOption
+                    icon={iconForPermission[option]}
+                    accessName={accessOptionNames[option]}
+                    access={option}
+                    setAccess={setAccess}
+                    id={id}
+                />
+            </li>
+        )}
+    </ul>
+
+const GroupPermissionCell = ({ id, icon, permission, setAccess }) =>
+    <PopoverWithTrigger
+        className="flex-full"
+       triggerElement={
+           <Tooltip tooltip={accessOptionNames[permission.access_type]}>
+                <div
+                    className="flex flex-full align-center justify-center"
+                    style={Object.assign({}, CELL_STYLES, { backgroundColor: bgColorForPermission[permission.access_type]})}
+               >
+                    <Icon
+                        name={icon ? icon : iconForPermission[permission.access_type]}
+                        width='28'
+                        height='28'
+                        className={iconColorsForPermission[permission.access_type]}
+                    />
+                </div>
+            </Tooltip>
+       }
+    >
+        <AccessOptionList setAccess={setAccess} id={id} />
+    </PopoverWithTrigger>
 
 
 GroupPermissionCell.defaultProps = {
@@ -285,32 +337,58 @@ const SourceList = ({ sources, sourceType, detailsFn }) =>
   </div>
 
 
-const GroupPermissionRow = ({ access, showSQL }) =>
+const GroupPermissionRow = ({ id, access, showSQL, setAccess }) =>
     <div className="flex border-bottom">
-        { showSQL &&<GroupPermissionCell permission={access} icon='sql'/> }
-        <GroupPermissionCell permission={access} />
+        { showSQL &&<GroupPermissionCell permission={access} icon='sql' setAccess={setAccess} id={id} /> }
+        <GroupPermissionCell permission={access} setAccess={setAccess} id={id} />
     </div>
 
 const GroupPermissionHeader = ({header}) => <h3>{header}</h3>
 
 class GroupDetail extends Component {
-    constructor () {
-        super()
+    constructor (props) {
+        super(props)
         this.state = {}
+        this.setAccess = this.setAccess.bind(this)
     }
 
     componentDidMount () {
-        PermissionsAPI.groupDetails({ id: this.props.group.id }).then(
-            (details) => {
-                console.log('details', details)
-                this.setState({ databases: details.databases })
-            }
+        const { fetchDetails, group, resolveFunction } = this.props
+
+        fetchDetails({ id: group.id }).then(
+            (details) =>
+                this.setState({
+                    sources: resolveFunction(details)
+                })
+        )
+
+    }
+    
+    componentDidUpdate () {
+        const { fetchDetails, group, resolveFunction } = this.props
+
+        fetchDetails({ id: group.id }).then(
+            (details) =>
+                this.setState({
+                    sources: resolveFunction(details)
+                })
+        )
+
+    }
+    
+    setAccess (accessType, sourceID) {
+        PermissionsAPI.updateDatabasePermissions({
+            groupID: this.props.group.id,
+            databaseID: sourceID,
+            access_type: accessType
+        })
+        .then((response) =>
+            this.forceUpdate()
         )
     }
 
     render () {
        const { sources, group, showSQL } = this.props
-       const { databases } = this.state
        return (
             <div className="border-right" style={{ minWidth: 330 }}>
                 <h3 className="text-centered full my1">{ group.name }</h3>
@@ -326,9 +404,11 @@ class GroupDetail extends Component {
                 </div>
                 { sources.map((source, index) =>
                     <GroupPermissionRow
-                        access={_.findWhere(databases, {database_id: source.id })}
+                        access={_.findWhere(this.state.sources, { database_id: source.id })}
                         key={index}
                         showSQL={showSQL}
+                        setAccess={this.setAccess}
+                        id={source.id}
                     />
                 )}
             </div>
