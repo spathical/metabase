@@ -104,7 +104,6 @@ export default class GridPermssions extends Component {
         PermissionsAPI.databaseDetails({ id: dbID }).then(
             (details) =>
                 MetadataAPI.db_metadata({ dbId: dbID}).then((data) => {
-                    console.log('db data', data)
                     this.setState({
                         sources: data.tables,
                         sourceType: 'tables'
@@ -205,6 +204,7 @@ export default class GridPermssions extends Component {
                               <GroupDetail
                                   group={group}
                                   sources={sources}
+                                  sourceType={this.state.sourceType}
                                   key={index}
                                   fetchDetails={
                                       this.state.sourceType === 'database' ?
@@ -216,7 +216,7 @@ export default class GridPermssions extends Component {
                                       this.state.sourceType === 'database' ?
                                       (details) => details.databases
                                       :
-                                      (details) => console.log('details', details)
+                                      (details) => details.tables
                                   }
                                   showSQL={this.state.sourceType === 'database'}
                               />
@@ -234,7 +234,7 @@ export default class GridPermssions extends Component {
     }
 }
 
-const CELL_HEIGHT = 60;
+const CELL_HEIGHT = 30;
 
 /* unrestricted, all_schemas, some_schemas, no_access */
 
@@ -261,7 +261,7 @@ const iconColorsForPermission = {
 
 const CELL_STYLES = {
     height: CELL_HEIGHT,
-    padding: 70
+    padding: 50
 }
 
 const accessOptions = [
@@ -327,21 +327,30 @@ GroupPermissionCell.defaultProps = {
     }
 }
 
+const nextLinkForSourceType = {
+    'database': 'View schemas',
+    'tables': 'View fields'
+}
+
 const SourceList = ({ sources, sourceType, detailsFn, back }) =>
   <div>
       <div className="flex">
-          { sourceType === 'tables' && <a onClick={() => back() }>Back</a> }
+          { sourceType === 'tables' && <a href="#" onClick={() => back() }>Back</a> }
           <Icon name={sourceType} />
           <h3>{sourceType}</h3>
       </div>
-      { sources && sources.map(source =>
+      { sources && sources.map((source, index) =>
           <div
+              key={index}
               style={Object.assign({}, CELL_STYLES, { paddingLeft: 0 })}
           >
               <h3>{source.name}</h3>
               <a
                 className="link block"
-                onClick={() => detailsFn(source.id)}>View schemas</a>
+                onClick={() => detailsFn(source.id)}
+              >
+                { nextLinkForSourceType[sourceType] }
+             </a>
           </div>
       )}
   </div>
@@ -363,26 +372,48 @@ class GroupDetail extends Component {
     }
 
     componentDidMount () {
-        const { fetchDetails, group, resolveFunction } = this.props
+        this.fetch()
+    }
 
-        fetchDetails({ id: group.id }).then(
+    array_id () {
+        switch(this.props.sourceType) {
+            case 'tables':
+                return  'table_id'
+            default: 
+                return 'database_id'
+        }
+    }
+
+    params () {
+        switch(this.props.sourceType) {
+            case 'tables':
+                return  {
+                    schema: 'PUBLIC',
+                    groupID: this.props.group.id,
+                    databaseID: 1
+                }
+            default: 
+                return { id: this.props.group.id }
+        }
+    }
+
+    fetch () {
+        const { fetchDetails, group, resolveFunction, sourceType } = this.props
+
+        fetchDetails(this.params()).then(
             (details) =>
                 this.setState({
                     sources: resolveFunction(details)
                 })
         )
-
     }
     
-    componentDidUpdate () {
+    componentDidUpdate (nextProps) {
         const { fetchDetails, group, resolveFunction } = this.props
 
-        fetchDetails({ id: group.id }).then(
-            (details) =>
-                this.setState({
-                    sources: resolveFunction(details)
-                })
-        )
+        if(this.props.sourceType !== nextProps.sourceType) {
+            this.fetch()
+        }
 
     }
     
@@ -414,7 +445,7 @@ class GroupDetail extends Component {
                 </div>
                 { sources.map((source, index) =>
                     <GroupPermissionRow
-                        access={_.findWhere(this.state.sources, { database_id: source.id })}
+                        access={_.findWhere(this.state.sources, { [this.array_id()]: source.id })}
                         key={index}
                         showSQL={showSQL}
                         setAccess={this.setAccess}
