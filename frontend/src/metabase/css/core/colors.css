@@ -31,6 +31,8 @@
     color: var(--default-font-color);
 }
 
+.text-danger { color: #EEA5A5; }
+
 /* brand */
 .text-brand, :local(.text-brand),
 .text-brand-hover:hover, :local(.text-brand-hover):hover {

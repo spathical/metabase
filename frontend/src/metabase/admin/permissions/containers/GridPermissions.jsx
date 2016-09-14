@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import { connect } from "react-redux";
 
 import { getDatabases, getGroups, getSchemaPermissions } from "../selectors";
-import { fetchDatabases, fetchGroups, fetchSchemaPermissions } from "../permissions";
+import { fetchDatabases, fetchGroups, fetchGroupDetails, fetchSchemaPermissions } from "../permissions";
 
 import GridPermissions from "../components/GridPermissions.jsx";
 
@@ -18,7 +18,8 @@ function mapStateToProps(state, props) {
 const mapDispatchToProps = {
     fetchDatabases,
     fetchGroups,
-    fetchSchemaPermissions
+    fetchSchemaPermissions,
+    fetchGroupDetails
 };
 
 @connect(mapStateToProps, mapDispatchToProps)

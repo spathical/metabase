@@ -15,7 +15,7 @@ import Permissions from "./Permissions.jsx";
 import Icon from "metabase/components/Icon.jsx";
 import PopoverWithTrigger from "metabase/components/PopoverWithTrigger.jsx";
 
-const PermissionsAPI = new AngularResourceProxy("Permissions", ["updateSchemaPermissions", "createTablePermissions", "deleteTablePermissions"]);
+const PermissionsAPI = new AngularResourceProxy("Permissions", ["groupDetails", "databaseDetails", "databasePermissions", "schemaPermissions", "updateSchemaPermissions", "createTablePermissions", "deleteTablePermissions"]);
 
 // ------------------------------------------------------------ Breadcrumbs ------------------------------------------------------------
 
@@ -90,7 +90,7 @@ export default class GridPermssions extends Component {
     constructor(props, context) {
         super(props, context);
         this.state = {
-            schemaPermissions: null
+            schemaPermissions: null,
         };
     }
 
@@ -112,6 +112,7 @@ export default class GridPermssions extends Component {
             if (error.data && typeof error.data === "string") alert(error.data);
         });
     }
+
 
     createTablePermissions(tablePermissions) {
         const groupID = Number.parseInt(this.props.params.groupID);
@@ -150,6 +151,9 @@ export default class GridPermssions extends Component {
         }
     }
 
+    permissionsForGroup(groupId) {
+    }
+
     render() {
         let { location: { pathname }, params: { databaseID, groupID, schema }, databases, groups, schemaPermissions } = this.props;
 
@@ -160,10 +164,12 @@ export default class GridPermssions extends Component {
 
         const database = _.findWhere(databases, {id: databaseID}) || {};
 
+        const sources = this.state.sources || databases
+
         return (
           <div className="flex full-height flex-column">
               <div className="wrapper flex-full"> 
-                  <div classNamme="py1">
+                  <div className="py1">
                       <h1>Permissions</h1>
                   </div>
                   <div className="flex">
@@ -172,16 +178,16 @@ export default class GridPermssions extends Component {
                               <Icon name='database' />
                               <h3>Databases</h3>
                           </div>
-                          { databases && databases.map(database =>
+                          { sources && sources.map(source =>
                               <div
                                   style={{ height: CELL_STYLES.height }}
                               >
-                                  <h3>{database.name}</h3>
-                                  <a className="link block">View schemas</a>
+                                  <h3>{source.name}</h3>
+                                  <a className="link block" onClick={() => console.log('swtich source')}>View schemas</a>
                               </div>
                           )}
                       </div>
-                      { groups && groups.map(group => <GroupDetail group={group} sources={databases} />) }
+                      { groups && groups.map((group, index) => <GroupDetail group={group} sources={sources} key={index} fetchDetails={this.props.fetchGroupDetails} />) }
                   </div>
               </div>
               <div className="border-top py3">
@@ -196,22 +202,27 @@ export default class GridPermssions extends Component {
 
 const CELL_HEIGHT = 60;
 
+/* unrestricted, all_schemas, some_schemas, no_access */
+
 const bgColorForPermission = {
-    'all_access': '#F6F9F2',
+    'unrestricted': '#F6F9F2',
+    'all_schemas': '#F6F9F2',
     'no_access': '#FDF3F3',
-    'some_access': '#FEFAEE'
+    'some_schemas': '#FEFAEE'
 }
 
 const iconForPermission = {
-    'all_access': 'check',
+    'unrestricted': 'check',
+    'all_schemas': 'check',
     'no_access': 'close',
-    'some_access': 'bg-yellow'
+    'some_schemas': 'bg-yellow'
 }
 
 const iconColorsForPermission = {
-    'all_access': 'text-green',
-    'no_access': 'text-red',
-    'some_access': 'text-gold'
+    'unrestricted': 'text-green',
+    'all_schemas': 'text-green',
+    'no_access': 'text-danger',
+    'some_schemas': 'text-gold'
 }
 
 const CELL_STYLES = {
@@ -222,35 +233,66 @@ const CELL_STYLES = {
 const GroupPermissionCell = ({ permission, changePermission }) =>
     <div
         className="flex align-center justify-center"
-        style={Object.assign({}, CELL_STYLES, { backgroundColor: bgColorForPermission[permission]})}
+        style={Object.assign({}, CELL_STYLES, { backgroundColor: bgColorForPermission[permission.access_type]})}
    >
         <Icon
-            name={iconForPermission[permission]}
+            name={iconForPermission[permission.access_type]}
             width='28'
             height='28'
-            className={iconColorsForPermission[permission]}
+            className={iconColorsForPermission[permission.access_type]}
         />
     </div>
 
 
-const GroupPermissionRow = ({ children }) =>
+GroupPermissionCell.defaultProps = {
+    permission: {
+        access_type: ''
+    }
+}
+
+
+const GroupPermissionRow = ({ access }) =>
     <div className="flex border-bottom">
-        <GroupPermissionCell permission={'all_access'} />
-        <GroupPermissionCell permission={'no_access'} />
+        <GroupPermissionCell permission={access} />
+        <GroupPermissionCell permission={access} />
     </div>
 
 const GroupPermissionHeader = ({header}) => <h3>{header}</h3>
 
-const GroupDetail = ({ sources, group }) =>
-    <div className="border-right">
-        <h3 className="text-centered full my1">{ group.name }</h3>
-        <div className="flex border-bottom border-top">
-            <div className="flex-full text-centered py1">
-                <GroupPermissionHeader header='SQL Access' />
+class GroupDetail extends Component {
+    constructor () {
+        super()
+        this.state = {}
+    }
+
+    componentDidMount () {
+        PermissionsAPI.groupDetails({ id: this.props.group.id }).then(
+            (details) => this.setState({ databases: details.databases })
+        )
+    }
+
+    render () {
+       const { sources, group } = this.props
+       const { databases } = this.state
+       return (
+            <div className="border-right">
+                <h3 className="text-centered full my1">{ group.name }</h3>
+                <div className="flex border-bottom border-top">
+                    <div className="flex-full text-centered py1">
+                        <GroupPermissionHeader header='SQL Access' />
+                    </div>
+                    <div className="flex-full text-centered border-left py1">
+                        <GroupPermissionHeader header='Schema Access' />
+                    </div>
+                </div>
+                { sources.map((source, index) =>
+                    <GroupPermissionRow
+                        access={_.findWhere(databases, {database_id: source.id })}
+                        key={index}
+                        test='text'
+                    />
+                )}
             </div>
-            <div className="flex-full text-centered border-left py1">
-                <GroupPermissionHeader header='Schema Access' />
-            </div>
-        </div>
-        { sources.map(source => <GroupPermissionRow />) }
-    </div>
+       )
+    }
+}
