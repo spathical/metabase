@@ -289,23 +289,14 @@ export default class GroupsListing extends Component {
     render() {
         let { location: { pathname }, groups } = this.props;
         groups = this.state.groups || groups || [];
-
+        console.log('here we are')
         return (
-            <Permissions leftNavPane={<TopLevelLeftNavPane currentPath={pathname} />}
-                         rightTitleButtonTitle="Create a group"
-                         rightTitleButtonAction={this.state.showAddGroupRow ? null : this.onCreateAGroupButtonClicked.bind(this)}
-            >
-                <GroupsTable groups={groups} text={this.state.text} showAddGroupRow={this.state.showAddGroupRow} groupBeingEdited={this.state.groupBeingEdited}
-                             onAddGroupCanceled={this.onAddGroupCanceled.bind(this)}
-                             onAddGroupCreateButtonClicked={this.onAddGroupCreateButtonClicked.bind(this)}
-                             onAddGroupTextChanged={this.onAddGroupTextChanged.bind(this)}
-                             onEditGroupClicked={this.onEditGroupClicked.bind(this)}
-                             onEditGroupTextChange={this.onEditGroupTextChange.bind(this)}
-                             onEditGroupCancelClicked={this.onEditGroupCancelClicked.bind(this)}
-                             onEditGroupDoneClicked={this.onEditGroupDoneClicked.bind(this)}
-                             onDeleteGroupClicked={this.onDeleteGroupClicked.bind(this)}
-                />
-            </Permissions>
+            <div>
+            {
+                groups.map((group) => <div>{group.name}</div>)
+            }
+            </div>
+
         );
     }
 }

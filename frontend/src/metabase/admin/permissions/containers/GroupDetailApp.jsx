@@ -37,6 +37,7 @@ export default class GroupDetailApp extends Component {
     }
 
     render() {
+        console.log('are we even here?')
         return <GroupDetail {...this.props} />;
     }
 }

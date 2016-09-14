@@ -7,12 +7,13 @@ import DataApp from "./containers/DataApp.jsx";
 import DatabaseDetailsApp from "./containers/DatabaseDetailsApp.jsx";
 import DatabasePermissionsApp from "./containers/DatabasePermissionsApp.jsx";
 import SchemaPermissionsApp from "./containers/SchemaPermissionsApp.jsx";
+import GridPermissionsApp from "./containers/GridPermissions.jsx";
 
 export default (
     <Route path="permissions">
         <IndexRedirect to="groups" />
         <Route path="groups">
-            <IndexRoute component={GroupsListingApp} />
+            <IndexRoute component={GridPermissionsApp} />
             <Route path=":groupID" component={GroupDetailApp} />
         </Route>
         <Route path="data" component={DataApp} />
