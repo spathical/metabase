@@ -73,7 +73,7 @@ export default class LineAreaBarChart extends Component {
 
     static transformSeries(series) {
         let newSeries = [].concat(...series.map(transformSingleSeries));
-        if (_.isEqual(series, newSeries)) {
+        if (_.isEqual(series, newSeries) || newSeries.length === 0) {
             return series;
         } else {
             // If we transformed a single series to multi series set that as the card title default
