@@ -42,17 +42,8 @@ function columnsAreValid(colNames, data, filter = () => true) {
     , true);
 }
 
-function getSeriesTitles([{ data: { rows, cols } }], vizSettings) {
-    const seriesDimension = vizSettings["graph.dimensions"][1];
-    if (seriesDimension != null) {
-        let seriesIndex = _.findIndex(cols, (col) => col.name === seriesDimension);
-        return crossfilter(rows).dimension(d => d[seriesIndex]).group().all().map(v => v.key);
-    } else {
-        return vizSettings["graph.metrics"].map(name => {
-            let col = _.findWhere(cols, { name });
-            return col && getFriendlyName(col);
-        });
-    }
+function getSeriesTitles(series, vizSettings) {
+    return series.map(s => s.card.name);
 }
 
 function getDefaultColumns(series) {
@@ -135,6 +126,12 @@ import { normal } from "metabase/lib/colors";
 const isAnyField = () => true;
 
 const SETTINGS = {
+    "card.title": {
+        title: "Title",
+        widget: ChartSettingInput,
+        getDefault: (series) => series.length === 1 ? series[0].card.name : null,
+        dashboard: true
+    },
     "graph._dimension_filter": {
         getDefault: ([{ card }]) => card.display === "scatter" ? isAnyField : isDimension
     },
@@ -160,7 +157,8 @@ const SETTINGS = {
             };
         },
         readDependencies: ["graph._dimension_filter", "graph._metric_filter"],
-        writeDependencies: ["graph.metrics"]
+        writeDependencies: ["graph.metrics"],
+        dashboard: false
     },
     "graph.metrics": {
         section: "Data",
@@ -181,7 +179,8 @@ const SETTINGS = {
             };
         },
         readDependencies: ["graph._dimension_filter", "graph._metric_filter"],
-        writeDependencies: ["graph.dimensions"]
+        writeDependencies: ["graph.dimensions"],
+        dashboard: false
     },
     "scatter.bubble": {
         section: "Data",
@@ -198,7 +197,8 @@ const SETTINGS = {
                 onRemove: vizSettings["scatter.bubble"] ? () => onChange(null) : null
             };
         },
-        writeDependencies: ["graph.dimensions"]
+        writeDependencies: ["graph.dimensions"],
+        dashboard: false
     },
     "line.interpolate": {
         section: "Display",
@@ -668,7 +668,7 @@ function getSetting(id, vizSettings, series) {
 
 function getSettingIdsForSeries(series) {
     const [{ card }] = series;
-    const prefixes = SETTINGS_PREFIXES_BY_CHART_TYPE[card.display] || [];
+    const prefixes = (SETTINGS_PREFIXES_BY_CHART_TYPE[card.display] || []).concat("card.");
     return Object.keys(SETTINGS).filter(id => _.any(prefixes, (p) => id.startsWith(p)))
 }
 
@@ -704,9 +704,12 @@ function getSettingWidget(id, vizSettings, series, onChangeSettings) {
     };
 }
 
-export function getSettingsWidgets(series, onChangeSettings) {
+export function getSettingsWidgets(series, onChangeSettings, isDashboard = false) {
     const vizSettings = getSettings(series);
     return getSettingIdsForSeries(series).map(id =>
         getSettingWidget(id, vizSettings, series, onChangeSettings)
-    ).filter(widget => widget.widget && !widget.hidden);
+    ).filter(widget =>
+        widget.widget && !widget.hidden &&
+        (widget.dashboard === undefined || widget.dashboard === isDashboard)
+    );
 }

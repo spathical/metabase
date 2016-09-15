@@ -6,7 +6,7 @@ import ModalWithTrigger from "metabase/components/ModalWithTrigger.jsx";
 
 import ChartSettings from "metabase/visualizations/components/ChartSettings.jsx";
 
-import visualizations from "metabase/visualizations";
+import visualizations, { getVisualizationRaw } from "metabase/visualizations";
 
 import cx from "classnames";
 
@@ -31,12 +31,12 @@ export default class VisualizationSettings extends React.Component {
 
     renderChartTypePicker() {
         let { result, card } = this.props;
-        let visualization = visualizations.get(card.display);
+        let { CardVisualization } = getVisualizationRaw([{ card, data: result.data }]);
 
         var triggerElement = (
             <span className="px2 py1 text-bold cursor-pointer text-default flex align-center">
-                <Icon name={visualization.iconName} size={12} />
-                {visualization.displayName}
+                <Icon name={CardVisualization.iconName} size={12} />
+                {CardVisualization.displayName}
                 <Icon className="ml1" name="chevrondown" size={8} />
             </span>
         );

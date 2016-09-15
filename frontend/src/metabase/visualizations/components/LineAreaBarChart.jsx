@@ -8,7 +8,6 @@ import lineAreaBarRenderer from "metabase/visualizations/lib/LineAreaBarRenderer
 
 import { isNumeric, isDate } from "metabase/lib/schema_metadata";
 import {
-    isSameSeries,
     getChartTypeFromData,
     getFriendlyName
 } from "metabase/visualizations/lib/utils";
@@ -20,6 +19,7 @@ import { MinRowsError, ChartSettingsError } from "metabase/visualizations/lib/er
 import crossfilter from "crossfilter";
 import _ from "underscore";
 import cx from "classnames";
+import i from "icepick";
 
 export default class LineAreaBarChart extends Component {
     static noHeader = true;
@@ -71,11 +71,18 @@ export default class LineAreaBarChart extends Component {
         return true;
     }
 
-    constructor(props, context) {
-        super(props, context);
-        this.state = {
-            series: null,
-        };
+    static transformSeries(series) {
+        let newSeries = [].concat(...series.map(transformSingleSeries));
+        if (_.isEqual(series, newSeries)) {
+            return series;
+        } else {
+            // If we transformed a single series to multi series set that as the card title default
+            if (series.length === 1 && newSeries[0].card.visualization_settings["card.title"] == null) {
+                return i.assocIn(newSeries, [0, "card", "visualization_settings", "card.title"], series[0].card.name);
+            } else {
+                return newSeries;
+            }
+        }
     }
 
     static propTypes = {
@@ -87,23 +94,6 @@ export default class LineAreaBarChart extends Component {
 
     static defaultProps = {
     };
-
-    componentWillMount() {
-        this.transformSeries(this.props);
-    }
-
-    componentWillReceiveProps(newProps) {
-        if (isSameSeries(newProps.series, this.props.series)) {
-            return;
-        }
-        this.transformSeries(newProps);
-    }
-
-    transformSeries(newProps) {
-        this.setState({
-            series: [].concat(...newProps.series.map(transformSingleSeries))
-        });
-    }
 
     getHoverClasses() {
         const { hovered } = this.props;
@@ -170,47 +160,39 @@ export default class LineAreaBarChart extends Component {
     }
 
     render() {
-        const { hovered, isDashboard, actionButtons } = this.props;
-        const { series } = this.state;
+        const { series, hovered, isDashboard, actionButtons } = this.props;
 
         const settings = this.getSettings();
 
         let titleHeaderSeries, multiseriesHeaderSeries;
 
-        // only show the title if there's a single card
-        if (this.props.series.length === 1) {
-            titleHeaderSeries = this.props.series;
+        if (isDashboard && settings["card.title"]) {
+            titleHeaderSeries = [{ card: { name: settings["card.title"] }}];
         }
-        // always show multiseries headers if there is more than one series
-        if (this.state.series.length > 1) {
-            if (this.state.series.length > this.props.series.length) {
-                // if there are any card multiseries use the expanded series for the titles
-                multiseriesHeaderSeries = this.state.series;
-            } else {
-                // if there are no card multiseries then use the original cards
-                multiseriesHeaderSeries = this.props.series;
-            }
+
+        if (series.length > 1) {
+            multiseriesHeaderSeries = series;
         }
 
         return (
             <div className={cx("flex flex-column p1", this.getHoverClasses(), this.props.className)}>
-                { titleHeaderSeries && isDashboard &&
+                { titleHeaderSeries ?
                     <LegendHeader
                         className="flex-no-shrink"
                         series={titleHeaderSeries}
                         actionButtons={actionButtons}
                     />
-                }
-                { multiseriesHeaderSeries &&
+                : null }
+                { multiseriesHeaderSeries || (!titleHeaderSeries && actionButtons) ? // always show action buttons if we have them
                     <LegendHeader
                         className="flex-no-shrink"
                         series={multiseriesHeaderSeries}
                         settings={settings}
                         hovered={hovered}
                         onHoverChange={this.props.onHoverChange}
-                        actionButtons={!titleHeaderSeries && isDashboard ? actionButtons : null}
+                        actionButtons={!titleHeaderSeries ? actionButtons : null}
                     />
-                }
+                : null }
                 <CardRenderer
                     {...this.props}
                     chartType={this.getChartType()}
@@ -234,6 +216,12 @@ function getColumnsFromNames(cols, names) {
 
 function transformSingleSeries(s) {
     const { card, data } = s;
+
+    // HACK: prevents cards from being transformed too many times
+    if (card._transformed) {
+        return [s];
+    }
+
     const { cols, rows } = data;
     const settings = getSettings([s]);
 
@@ -261,7 +249,8 @@ function transformSingleSeries(s) {
             card: {
                 ...card,
                 id: null,
-                name: o.key
+                name: o.key,
+                _transformed: true,
             },
             data: {
                 rows: o.value,
@@ -270,7 +259,6 @@ function transformSingleSeries(s) {
         }));
     } else {
         const dimensionIndex = dimensionIndexes[0];
-
         return metricIndexes.map(metricIndex => {
             const col = cols[metricIndex];
             const rowIndexes = [dimensionIndex].concat(metricIndex, extraIndexes);
@@ -278,7 +266,8 @@ function transformSingleSeries(s) {
                 card: {
                     ...card,
                     id: null,
-                    name: getFriendlyName(col)
+                    name: getFriendlyName(col),
+                    _transformed: true,
                 },
                 data: {
                     rows: rows.map(row =>
