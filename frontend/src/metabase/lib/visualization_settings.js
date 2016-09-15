@@ -1,5 +1,4 @@
 import _  from "underscore";
-import crossfilter from "crossfilter";
 
 import {
     getChartTypeFromData,
@@ -376,7 +375,8 @@ const SETTINGS = {
         section: "Axes",
         title: "Use a split y-axis when necessary",
         widget: ChartSettingToggle,
-        default: true
+        default: true,
+        getHidden: (series) => series.length < 2
     },
     "graph.x_axis.labels_enabled": {
         section: "Labels",
@@ -388,7 +388,10 @@ const SETTINGS = {
         section: "Labels",
         title: "X-axis label",
         widget: ChartSettingInput,
-        getHidden: (series, vizSettings) => vizSettings["graph.x_axis.labels_enabled"] === false
+        getHidden: (series, vizSettings) =>
+            vizSettings["graph.x_axis.labels_enabled"] === false,
+        getDefault: (series, vizSettings) =>
+            series.length === 1 ? getFriendlyName(series[0].data.cols[0]) : null
     },
     "graph.y_axis.labels_enabled": {
         section: "Labels",
@@ -400,7 +403,10 @@ const SETTINGS = {
         section: "Labels",
         title: "Y-axis label",
         widget: ChartSettingInput,
-        getHidden: (series, vizSettings) => vizSettings["graph.y_axis.labels_enabled"] === false
+        getHidden: (series, vizSettings) =>
+            vizSettings["graph.y_axis.labels_enabled"] === false,
+        getDefault: (series, vizSettings) =>
+            series.length === 1 ? getFriendlyName(series[0].data.cols[1]) : null
     },
     "pie.dimension": {
         section: "Data",
