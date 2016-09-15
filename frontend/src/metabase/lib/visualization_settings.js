@@ -10,6 +10,7 @@ import {
 
 import { isNumeric, isDate, isMetric, isDimension, hasLatitudeAndLongitudeColumns } from "metabase/lib/schema_metadata";
 import Query from "metabase/lib/query";
+import { capitalize } from "metabase/lib/formatting";
 
 import { getCardColors, getFriendlyName } from "metabase/visualizations/lib/utils";
 
@@ -230,11 +231,19 @@ const SETTINGS = {
             (card.display === "area" && vizSettings["graph.metrics"].length > 1)
         )
     },
-    "graph.goal": {
+    "graph.show_goal": {
         section: "Display",
-        title: "Goal",
+        title: "Show goal",
+        widget: ChartSettingToggle,
+        default: false
+    },
+    "graph.goal_value": {
+        section: "Display",
+        title: "Goal value",
         widget: ChartSettingInputNumeric,
-        default: null
+        default: 0,
+        getHidden: (series, vizSettings) => vizSettings["graph.show_goal"] !== true,
+        readDependencies: ["graph.show_goal"]
     },
     "line.missing": {
         section: "Display",
@@ -298,6 +307,8 @@ const SETTINGS = {
     },
     "graph.colors": {
         section: "Display",
+        getTitle: ([{ card: { display } }]) =>
+            capitalize(display === "scatter" ? "bubble" : display) + " Colors",
         widget: ChartSettingColorsPicker,
         readDependencies: ["graph.dimensions", "graph.metrics"],
         getDefault: ([{ card, data }], vizSettings) => {
@@ -694,6 +705,7 @@ function getSettingWidget(id, vizSettings, series, onChangeSettings) {
         ...settingDef,
         id: id,
         value: value,
+        title: settingDef.getTitle ? settingDef.getTitle(series, vizSettings) : settingDef.title,
         hidden: settingDef.getHidden ? settingDef.getHidden(series, vizSettings) : false,
         disabled: settingDef.getDisabled ? settingDef.getDisabled(series, vizSettings) : false,
         props: {
