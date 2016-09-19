@@ -35,11 +35,11 @@
 	// strip off the timestamp that comes back from the backend so we don't get double-timestamps when NSLog adds its own
 	NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"^[\\d-:,\\s]+(.*$)" options:NSRegularExpressionAnchorsMatchLines|NSRegularExpressionAllowCommentsAndWhitespace error:nil];
 	message = [regex stringByReplacingMatchesInString:message options:0 range:NSMakeRange(0, message.length) withTemplate:@"$1"];
-	
+
 	// remove control codes used to color output
 	regex = [NSRegularExpression regularExpressionWithPattern:@"\\[\\d+m" options:0 error:nil];
 	message = [regex stringByReplacingMatchesInString:message options:0 range:NSMakeRange(0, message.length) withTemplate:@""];
-	
+
 	NSLog(@"%@", message);
 }
 
@@ -48,7 +48,7 @@
 - (void)unpackJars {
 	[self.packedJarPaths enumerateObjectsWithOptions:NSEnumerationConcurrent usingBlock:^(NSString *packedFilename, NSUInteger idx, BOOL *stop) {
 		NSString *jarName = [packedFilename stringByReplacingOccurrencesOfString:@".pack.gz" withString:@".jar"];
-		
+
 		if (![[NSFileManager defaultManager] fileExistsAtPath:jarName]) {
 			NSLog(@"Unpacking %@ ->\n\t%@...", packedFilename, jarName);
 			NSTask *task = [[NSTask alloc] init];
@@ -64,14 +64,14 @@
 - (void)deleteOldDBLockFilesIfNeeded {
 	NSString *lockFile	= [DBPath() stringByAppendingString:@".lock.db"];
 	NSString *traceFile = [DBPath() stringByAppendingString:@".trace.db"];
-	
+
 	for (NSString *file in @[lockFile, traceFile]) {
 		if ([[NSFileManager defaultManager] fileExistsAtPath:file]) {
 			NSLog(@"Deleting %@...", file);
-			
+
 			NSError *error = nil;
 			[[NSFileManager defaultManager] removeItemAtPath:file error:&error];
-			
+
 			if (error) {
 				NSLog(@"Error deleting %@: %@", file, error.localizedDescription);
 			}
@@ -81,23 +81,25 @@
 
 - (void)launch {
 	dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
-		
+
 		#if ENABLE_JAR_UNPACKING
 			[self unpackJars];
 		#endif
-		
+
 		[self deleteOldDBLockFilesIfNeeded];
-				
+
 		NSLog(@"Starting MetabaseTask @ 0x%zx...", (size_t)self);
-		
+
 		self.task				= [[NSTask alloc] init];
 		self.task.launchPath	= JREPath();
 		self.task.environment	= @{@"MB_DB_FILE": DBPath(),
 									@"MB_PLUGINS_DIR": PluginsDirPath(),
 									@"MB_JETTY_PORT": @(self.port)};
-		self.task.arguments		= @[@"-Djava.awt.headless=true",
+		self.task.arguments		= @[@"-Djava.awt.headless=true", // this prevents the extra java icon from popping up in the dock when running
+                                    @"-client",                  // make sure we're running in -client mode, which has a faster lanuch time
+                                    @"-Xverify:none",            // disable bytecode verification for faster launch speed, not really needed here since JAR is packaged as part of signed .app
 									@"-jar", UberjarPath()];
-				
+
 		__weak MetabaseTask *weakSelf = self;
 		self.task.terminationHandler = ^(NSTask *task){
 			NSLog(@"\n\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Task terminated with exit code %d !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", task.terminationStatus);
@@ -109,7 +111,7 @@
 				}
 			});
 		};
-												
+
 		NSLog(@"Launching MetabaseTask\nMB_DB_FILE='%@'\nMB_PLUGINS_DIR='%@'\nMB_JETTY_PORT=%lu\n%@ -jar %@", DBPath(), PluginsDirPath(), self.port, JREPath(), UberjarPath());
 		[self.task launch];
 	});
