@@ -2,6 +2,7 @@
   "/api/permissions endpoints."
   (:require [clojure.string :as s]
             [compojure.core :refer [GET POST PUT DELETE]]
+            [medley.core :as m]
             [metabase.api.common :refer :all]
             [metabase.db :as db]
             (metabase.models [database :as database]
@@ -66,6 +67,57 @@
                                    :full    :unrestricted
                                    :partial :some_fields
                                    :no_access)))})
+
+
+;;; ---------------------------------------- Permissions Graph API endpoints ----------------------------------------
+
+(defn- is-permissions-for-path? [^String path, ^String permissions]
+  (.startsWith path permissions))
+
+(defn- is-partial-permissions-for-path? [^String path, ^String permissions]
+  (.startsWith permissions path))
+
+(defn- permissions-for-path [permissions-set path]
+  (cond
+    (some (partial is-permissions-for-path? path) permissions-set)         :all
+    (some (partial is-partial-permissions-for-path? path) permissions-set) :some
+    :else                                                                  :none))
+
+(defn- table->db-object-path     [table] (object-path (:db_id table)))
+(defn- table->schema-object-path [table] (object-path (:db_id table) (:schema table)))
+(defn- table->table-object-path  [table] (object-path (:db_id table) (:schema table) (:id table)))
+
+(defn- tables-graph [permissions-set tables]
+  (into {} (for [table tables]
+             {(:id table) (permissions-for-path permissions-set (table->table-object-path table))})))
+
+(defn- schemas-graph [permissions-set tables]
+  (let [db-path (table->db-object-path (first tables))]
+    {:sql     (permissions-for-path permissions-set (str db-path "native/"))
+     :schemas (case (permissions-for-path permissions-set db-path)
+                :all  :all
+                :none :none
+                (m/map-vals (partial tables-graph permissions-set)
+                            (group-by :schema tables)))}))
+
+(defn- dbs-graph [permissions-set tables]
+  (m/map-vals (partial schemas-graph permissions-set)
+              tables))
+
+(defn- permissions-graph []
+  (let [permissions (db/select ['Permissions :group_id :object])
+        tables      (group-by :db_id (db/select ['Table :schema :id :db_id]))]
+    (into {} (for [group-id (db/select-ids 'PermissionsGroup)]
+               (let [group-permissions-set (set (for [perms permissions
+                                                      :when (= (:group_id perms) group-id)]
+                                                  (:object perms)))]
+                 {group-id (dbs-graph group-permissions-set tables)})))))
+
+(defendpoint GET "/graph"
+  "Fetch a graph of all Permissions."
+  []
+  (check-superuser)
+  (permissions-graph))
 
 
 ;;; ---------------------------------------- PermissionsGroup (/api/permissions/group) endpoints ----------------------------------------
