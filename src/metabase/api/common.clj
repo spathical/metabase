@@ -123,8 +123,7 @@
     -> (check (contains? #{:fav :all :mine} f)
          [400 (str \"Invalid value '\" f \"' for 'f': must be one of: #{:fav :all :mine}\")])"
   [valid-values-set symb value]
-  {:pre [(set? valid-values-set)
-         (symbol? symb)]}
+  {:pre [(set? valid-values-set) (symbol? symb)]}
   (checkp-with (partial contains? valid-values-set) symb value (str "must be one of: " valid-values-set)))
 
 

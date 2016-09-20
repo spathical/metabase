@@ -123,13 +123,10 @@
 
 (u/strict-extend (class Field)
   WithTempDefaults
-  {:with-temp-defaults (fn [_] {:active          true
-                                :base_type       :TextField
-                                :field_type      :info
-                                :name            (random-name)
-                                :position        1
-                                :preview_display true
-                                :table_id        (data/id :venues)})})
+  {:with-temp-defaults (fn [_] {:base_type :type/Text
+                                :name      (random-name)
+                                :position  1
+                                :table_id  (data/id :venues)})})
 
 (u/strict-extend (class Metric)
   WithTempDefaults
@@ -262,7 +259,7 @@
   (or (symbol? x)
       (instance? clojure.lang.Namespace x)))
 
-(defn resolve-private-fns* [source-namespace target-namespace symbols]
+(defn resolve-private-vars* [source-namespace target-namespace symbols]
   {:pre [(namespace-or-symbol? source-namespace)
          (namespace-or-symbol? target-namespace)
          (every? symbol? symbols)]}
@@ -272,13 +269,13 @@
                          (throw (Exception. (str source-namespace "/" symb " doesn't exist!"))))]]
     (intern target-namespace symb varr)))
 
-(defmacro resolve-private-fns
+(defmacro resolve-private-vars
   "Have your cake and eat it too. This Macro adds private functions from another namespace to the current namespace so we can test them.
 
-    (resolve-private-fns metabase.driver.generic-sql.sync
+    (resolve-private-vars metabase.driver.generic-sql.sync
       field-avg-length field-percent-urls)"
   [namespc & symbols]
-  `(resolve-private-fns* (quote ~namespc) *ns* (quote ~symbols)))
+  `(resolve-private-vars* (quote ~namespc) *ns* (quote ~symbols)))
 
 
 (defn obj->json->obj
