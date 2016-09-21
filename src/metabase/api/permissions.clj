@@ -2,6 +2,7 @@
   "/api/permissions endpoints."
   (:require [clojure.data :as data]
             [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [compojure.core :refer [GET POST PUT DELETE]]
             [medley.core :as m]
             [schema.core :as s]
@@ -43,7 +44,7 @@
               {s/Int TablePermissionsGraph}))
 
 (def ^:private NativePermissionsGraph
-  (s/enum :none :all))
+  (s/enum :write :read))
 
 (def ^:private DBPermissionsGraph
   {(s/optional-key :native)  NativePermissionsGraph
@@ -54,7 +55,8 @@
   {s/Int DBPermissionsGraph})
 
 (def ^:private PermissionsGraph
-  {s/Int GroupPermissionsGraph})
+  {:revision s/Int
+   :groups   {s/Int GroupPermissionsGraph}})
 
 
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -93,7 +95,9 @@
                      {(:id table) (permissions-for-path permissions-set (table->table-object-path table))}))))
 
 (s/defn ^:private db-permissions-graph :- DBPermissionsGraph [permissions-set tables]
-  {:native  (permissions-for-path permissions-set (table->native-path (first tables)))
+  {:native  (case (permissions-for-path permissions-set (table->native-path (first tables)))
+              :all  :write
+              :none :read)
    :schemas (case (permissions-for-path permissions-set (table->all-schemas-path (first tables)))
               :all  :all
               :none :none
@@ -108,11 +112,12 @@
 (s/defn ^:private ^:always-validate permissions-graph :- PermissionsGraph []
   (let [permissions (db/select [Permissions :group_id :object])
         tables      (group-by :db_id (fetch-tables))]
-    (into {} (for [group-id (db/select-ids PermissionsGroup)]
-               (let [group-permissions-set (set (for [perms permissions
-                                                      :when (= (:group_id perms) group-id)]
-                                                  (:object perms)))]
-                 {group-id (group-permissions-graph group-permissions-set tables)})))))
+    {:revision 1
+     :groups   (into {} (for [group-id (db/select-ids PermissionsGroup)]
+                          (let [group-permissions-set (set (for [perms permissions
+                                                                 :when (= (:group_id perms) group-id)]
+                                                             (:object perms)))]
+                            {group-id (group-permissions-graph group-permissions-set tables)})))}))
 
 (defendpoint GET "/graph"
   "Fetch a graph of all Permissions."
@@ -124,6 +129,8 @@
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
 ;;; |                                                                     GRAPH UPDATE                                                                     |
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+;;; ---------------------------------------- Helper Fns ----------------------------------------
 
 (defn- delete-related-permissions!
   "Delete are permissions that for ancestors or descendant objects."
@@ -171,6 +178,8 @@
   (delete-related-permissions! group-id (apply object-path path-components)))
 
 
+;;; ---------------------------------------- Graph Updating Fns ----------------------------------------
+
 (s/defn ^:private ^:always-validate update-table-perms! [group-id :- s/Int, db-id :- s/Int, schema :- s/Str, table-id :- s/Int, new-table-perms :- SchemaPermissionsGraph]
   (case new-table-perms
     :all  (grant-permissions! group-id db-id schema table-id)
@@ -184,14 +193,12 @@
                                  (update-table-perms! group-id db-id schema table-id table-perms))))
 
 (s/defn ^:private ^:always-validate update-native-permissions! [group-id :- s/Int, db-id :- s/Int, new-native-perms :- NativePermissionsGraph]
-  {:pre [(integer? group-id) (integer? db-id) (contains? #{:all :none} new-native-perms)]}
   (case new-native-perms
-    :all  (grant-native-permissions! group-id db-id)
-    :none (revoke-native-permissions! group-id db-id)))
+    :write (grant-native-permissions! group-id db-id)
+    :read  (revoke-native-permissions! group-id db-id)))
 
 
 (s/defn ^:private ^:always-validate update-db-permissions! [group-id :- s/Int, db-id :- s/Int, new-db-perms :- DBPermissionsGraph]
-  {:pre [(integer? group-id) (integer? db-id) (map? new-db-perms)]}
   (when-let [new-native-perms (:native new-db-perms)]
     (update-native-permissions! group-id db-id new-native-perms))
   (when-let [schemas (:schemas new-db-perms)]
@@ -201,44 +208,66 @@
       (map? schemas)    (doseq [schema (keys schemas)]
                           (update-schema-perms! group-id db-id schema (get-in new-db-perms [:schemas schema]))))))
 
-(defn- update-group-permissions! [group-id new-group-perms]
-  {:pre [(integer? group-id) (map? new-group-perms)]}
+(s/defn ^:private ^:always-validate update-group-permissions! [group-id :- s/Int, new-group-perms :- GroupPermissionsGraph]
   (doseq [db-id (keys new-group-perms)]
     (update-db-permissions! group-id db-id (get new-group-perms db-id))))
 
 (s/defn ^:private ^:always-validate update-permissions-graph! [new-graph :- PermissionsGraph]
   (let [old-graph (permissions-graph)
-        [old new] (data/diff old-graph new-graph)]
+        [old new] (data/diff (:groups old-graph) (:groups new-graph))]
+    (when (or (seq old) (seq new))
+      (log/info (format "Updating permissions! 🔏\nOLD:\n%s\nNEW:\n%s"
+                        (u/pprint-to-str 'magenta old)
+                        (u/pprint-to-str 'blue new))))
+    ;; TODO - Need to check the revision number for the new graph is the same as the one from old-graph. Otherwise people are editing old data
     ;; TODO - Need to save this graph diff somewhere for logging / audit purposes
     (doseq [group-id (keys new)]
       (update-group-permissions! group-id (get new group-id)))))
 
 
+;;; ---------------------------------------- DEJSONIFACTION ----------------------------------------
+
 (defn- ->int [id] (Integer/parseInt (name id)))
 
-(defn- de-JSONify-graph
+(defn- dejsonify-tables [tables]
+  (if (string? tables)
+    (keyword tables)
+    (into {} (for [[table-id perms] tables]
+               {(->int table-id) (keyword perms)}))))
+
+(defn- dejsonify-schemas [schemas]
+  (if (string? schemas)
+    (keyword schemas)
+    (into {} (for [[schema tables] schemas]
+               {(name schema) (dejsonify-tables tables)}))))
+
+(defn- dejsonify-dbs [dbs]
+  (into {} (for [[db-id {:keys [native schemas]}] dbs]
+             {(->int db-id) {:native  (keyword native)
+                             :schemas (dejsonify-schemas schemas)}})))
+
+(defn- dejsonify-groups [groups]
+  (into {} (for [[group-id dbs] groups]
+             {(->int group-id) (dejsonify-dbs dbs)})))
+
+(defn- dejsonify-graph
   "Fix the types in the graph when it comes in from the API, e.g. converting things like `\"none\"` to `:none` and parsing object keys as integers."
   [graph]
-  (into {} (for [[group-id dbs] graph]
-             {(->int group-id) (into {} (for [[db-id {:keys [native schemas]}] dbs]
-                                          {(->int db-id) {:native (keyword native)
-                                                          :schemas (if (string? schemas)
-                                                                     (keyword schemas)
-                                                                     (into {} (for [[schema tables] schemas]
-                                                                                {(name schema) (if (string? tables)
-                                                                                                 (keyword tables)
-                                                                                                 (into {} (for [[table-id perms] tables]
-                                                                                                            {(->int table-id) (keyword perms)})))})))}}))})))
+  (update graph :groups dejsonify-groups))
 
+
+;;; ---------------------------------------- Endpoint ----------------------------------------
 
 (defendpoint PUT "/graph"
   "Do a batch update of Permissions by passing in a modified graph."
   [:as {body :body}]
   {body [Required Dict]}
   (check-superuser)
-  (update-permissions-graph! (de-JSONify-graph body))
+  (update-permissions-graph! (dejsonify-graph body))
   ;; return the updated graph
   (permissions-graph))
+
+
 
 
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
