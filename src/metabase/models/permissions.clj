@@ -8,7 +8,7 @@
             [metabase.db :as db]
             (metabase.models [interface :as i]
                              [permissions-group :as groups]
-                             [permissions-revision :refer [PermissionsRevision] :as permissions-revision])
+                             [permissions-revision :refer [PermissionsRevision] :as perms-revision])
             [metabase.util :as u]
             [metabase.util.honeysql-extensions :as hx]))
 
@@ -87,28 +87,6 @@
   "Return the permissions path for a database that grants full access to all schemas."
   ^String [database-id]
   (str (object-path database-id) "schema/"))
-
-
-;;; ---------------------------------------- Deprecated Fns Used By Deprecated Endpoints ----------------------------------------
-
-(defn ^:deprecated group-has-full-access?
-  "Does a group have permissions for OBJECT and *all* of its children?"
-  ^Boolean [^Integer group-id, ^String object]
-  {:pre [(valid-object-path? object)]}
-  ;; e.g. WHERE (object || '%') LIKE '/db/1000/'
-  (db/exists? Permissions
-    :group_id group-id
-    object    [:like (hx/concat :object (hx/literal "%"))]))
-
-(defn ^:deprecated group-has-partial-access?
-  "Does a group have permissions for at least *some* of the children of OBJECT?"
-  [^Integer group-id, ^String object]
-  {:pre [(valid-object-path? object)]}
-  (cond
-    (group-has-full-access? group-id object) :full
-    (db/exists? Permissions
-      :group_id group-id
-      :object   [:like (str object "%")])    :partial))
 
 
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -219,7 +197,7 @@
   []
   (let [permissions (db/select [Permissions :group_id :object])
         tables      (group-by :db_id (db/select ['Table :schema :id :db_id]))]
-    {:revision (permissions-revision/latest-id)
+    {:revision (perms-revision/latest-id)
      :groups   (into {} (for [group-id (db/select-ids 'PermissionsGroup)]
                           (let [group-permissions-set (set (for [perms permissions
                                                                  :when (= (:group_id perms) group-id)]
@@ -331,7 +309,7 @@
     (throw (ex-info "Looks like someone else edited the permissions and your data is out of date. Please fetch new data and try again."
              {:status-code 409}))))
 
-(defn- save-permissions-revision!
+(defn- save-perms-revision!
   "Save changes made to the permissions graph for logging/auditing purposes.
    This doesn't do anything if `*current-user-id*` is unset (e.g. for testing or REPL usage)."
   [current-revision old new]
@@ -359,4 +337,4 @@
       (db/transaction
         (doseq [group-id (keys new)]
           (update-group-permissions! group-id (get new group-id)))
-        (save-permissions-revision! (:revision old-graph) old new)))))
+        (save-perms-revision! (:revision old-graph) old new)))))

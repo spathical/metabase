@@ -37,6 +37,7 @@
                              [permissions :refer [Permissions]]
                              [permissions-group :refer [PermissionsGroup]]
                              [permissions-group-membership :refer [PermissionsGroupMembership]]
+                             [permissions-revision :refer [PermissionsRevision]]
                              [pulse :refer [Pulse]]
                              [pulse-card :refer [PulseCard]]
                              [pulse-channel :refer [PulseChannel]]
@@ -93,7 +94,8 @@
    CardLabel
    PermissionsGroup
    PermissionsGroupMembership
-   Permissions])
+   Permissions
+   PermissionsRevision])
 
 
 (defn- h2-details [h2-connection-string-or-nil]

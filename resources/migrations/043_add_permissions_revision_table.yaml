@@ -33,7 +33,7 @@ databaseChangeLog:
                   constraints:
                     nullable: false
                     references: core_user(id)
-                    foreignKeyName: fk_permissions_group_membership_user_id
+                    foreignKeyName: fk_permissions_revision_user_id
               - column:
                   name: created_at
                   type: datetime

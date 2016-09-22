@@ -1,6 +1,7 @@
 (ns metabase.models.permissions-group-test
   (:require [expectations :refer :all]
             [metabase.db :as db]
+            [metabase.api.permissions :as perms-api]
             (metabase.models [database :refer [Database]]
                              [permissions :as perms]
                              [permissions-group :refer [PermissionsGroup], :as perm-group]
@@ -60,13 +61,16 @@
 
 
 ;;; ---------------------------------------- magic groups should have permissions for newly created databases ----------------------------------------
-(expect
-  (tu/with-temp Database [{database-id :id}]
-    (perms/group-has-full-access? (:id (perm-group/default)) (str "/db/" database-id "/"))))
+
+;; TODO - since these functions are "deprecated" consider some other way to write these tests
 
 (expect
   (tu/with-temp Database [{database-id :id}]
-    (perms/group-has-full-access? (:id (perm-group/admin)) (str "/db/" database-id "/"))))
+    (perms-api/group-has-full-access? (:id (perm-group/default)) (perms/object-path database-id))))
+
+(expect
+  (tu/with-temp Database [{database-id :id}]
+    (perms-api/group-has-full-access? (:id (perm-group/admin)) (perms/object-path database-id))))
 
 
 

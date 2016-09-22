@@ -5,11 +5,12 @@
             [metabase.db :as db]
             (metabase.models [database :as database]
                              [hydrate :refer [hydrate]]
-                             [permissions :refer [Permissions], :as permissions]
+                             [permissions :refer [Permissions], :as perms]
                              [permissions-group :refer [PermissionsGroup], :as group]
                              [permissions-group-membership :refer [PermissionsGroupMembership]]
                              [table :refer [Table]])
-            [metabase.util :as u]))
+            [metabase.util :as u]
+            [metabase.util.honeysql-extensions :as hx]))
 
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
 ;;; |                                                             PERMISSIONS GRAPH ENDPOINTS                                                              |
@@ -52,7 +53,7 @@
   "Fetch a graph of all Permissions."
   []
   (check-superuser)
-  (permissions/graph))
+  (perms/graph))
 
 
 (defendpoint PUT "/graph"
@@ -67,8 +68,8 @@
   [:as {body :body}]
   {body [Required Dict]}
   (check-superuser)
-  (permissions/update-graph! (dejsonify-graph body))
-  (permissions/graph))
+  (perms/update-graph! (dejsonify-graph body))
+  (perms/graph))
 
 
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -141,20 +142,40 @@
 ;;; |                                                              DEPRECATED ENDPOINTS BELOW                                                              |
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+;; TODO - Not 100% sure this should be deprecated since it's used in tests. Might make sense to move it there instead
+(defn ^:deprecated group-has-full-access?
+  "Does a group have permissions for OBJECT and *all* of its children?"
+  ^Boolean [^Integer group-id, ^String object]
+  {:pre [(perms/valid-object-path? object)]}
+  ;; e.g. WHERE (object || '%') LIKE '/db/1000/'
+  (db/exists? Permissions
+    :group_id group-id
+    object    [:like (hx/concat :object (hx/literal "%"))]))
+
+(defn- ^:deprecated group-has-partial-access?
+  "Does a group have permissions for at least *some* of the children of OBJECT?"
+  [^Integer group-id, ^String object]
+  {:pre [(perms/valid-object-path? object)]}
+  (cond
+    (group-has-full-access? group-id object) :full
+    (db/exists? Permissions
+      :group_id group-id
+      :object   [:like (str object "%")])    :partial))
+
 (defn- ^:deprecated group-access-type-for-db [group-id database-id]
-  (let [db      (object-path database-id)
+  (let [db      (perms/object-path database-id)
         schemas (str db "schema/")]
     (cond
-      (permissions/group-has-full-access?    group-id db)      :unrestricted
-      (permissions/group-has-full-access?    group-id schemas) :all_schemas
-      (permissions/group-has-partial-access? group-id schemas) :some_schemas
-      :else                                                    :no_access)))
+      (group-has-full-access?    group-id db)      :unrestricted
+      (group-has-full-access?    group-id schemas) :all_schemas
+      (group-has-partial-access? group-id schemas) :some_schemas
+      :else                                        :no_access)))
 
 (defn- ^:deprecated group-access-type-for-schema [group-id database-id schema-name]
-  (let [object (object-path database-id schema-name)]
+  (let [object (perms/object-path database-id schema-name)]
     (cond
-      (permissions/group-has-full-access?    group-id object) :all_tables
-      (permissions/group-has-partial-access? group-id object) :some_tables)))
+      (group-has-full-access?    group-id object) :all_tables
+      (group-has-partial-access? group-id object) :some_tables)))
 
 
 (defn- ^:deprecated group-permissions-for-db [group-id database-id]
@@ -170,7 +191,7 @@
   {:group_id    group-id
    :database_id database-id
    :schema      schema-name
-   :access_type (case (permissions/group-has-partial-access? group-id (object-path database-id schema-name))
+   :access_type (case (group-has-partial-access? group-id (perms/object-path database-id schema-name))
                   :full    :unrestricted
                   :partial :some_tables
                   :no_access)
@@ -179,7 +200,7 @@
                               :schema schema-name
                               {:order-by [:%lower.name]})]
                   (assoc table
-                    :access_type (case (permissions/group-has-partial-access? group-id (object-path database-id schema-name (:table_id table)))
+                    :access_type (case (group-has-partial-access? group-id (perms/object-path database-id schema-name (:table_id table)))
                                    :full    :unrestricted
                                    :partial :some_fields
                                    :no_access)))})
@@ -231,14 +252,14 @@
   (check (contains? #{"unrestricted" "all_schemas" "some_schemas" "no_access"} access_type)
     400 "Invalid access type.")
   ;; remove any existing permissions
-  (db/cascade-delete! Permissions :group_id group-id, :object [:like (str (object-path database-id) "%")])
+  (db/cascade-delete! Permissions :group_id group-id, :object [:like (str (perms/object-path database-id) "%")])
   ;; now insert a new entry if appropriate
   (case access_type
-    "unrestricted" (db/insert! Permissions :group_id group-id, :object (object-path database-id))
-    "all_schemas"  (db/insert! Permissions :group_id group-id, :object (str (object-path database-id) "schema/"))
+    "unrestricted" (db/insert! Permissions :group_id group-id, :object (perms/object-path database-id))
+    "all_schemas"  (db/insert! Permissions :group_id group-id, :object (str (perms/object-path database-id) "schema/"))
     ;; just insert an entry for the first schema for this DB
     "some_schemas" (let [first-schema-name (first (database/schema-names {:id 1}))]
-                     (db/insert! Permissions :group_id group-id, :object (object-path database-id first-schema-name)))
+                     (db/insert! Permissions :group_id group-id, :object (perms/object-path database-id first-schema-name)))
     ;; nothing to create for no_access
     "no_access"    nil)
   (group-permissions-for-db group-id database-id))
@@ -259,14 +280,14 @@
   [database-id group-id :as {{:keys [schema]} :body}]
   {schema [Required NonEmptyString]}
   (check-superuser)
-  (grant-permissions! group-id database-id schema))
+  ((resolve 'metabase.models.perissions/grant-permissions!) group-id database-id schema))
 
 
 (defendpoint DELETE "/group/:group-id/database/:database-id/schema/:schema-name"
   "Remove schema permissions for a group."
   [group-id database-id schema-name]
   {schema-name NonEmptyString}
-  (revoke-permissions! group-id database-id schema-name))
+  ((resolve 'metabase.models.perissions/revoke-permissions!) group-id database-id schema-name))
 
 
 (defendpoint PUT "/group/:group-id/database/:database-id/schema/:schema-name"
@@ -275,10 +296,10 @@
   {unrestricted_table_access [Required Boolean]}
   (check-superuser)
   ;; always remove all schema permissions
-  (revoke-permissions! group-id database-id schema-name)
+  ((resolve 'metabase.models.perissions/revoke-permissions!) group-id database-id schema-name)
   ;; create a new unrestricted entry for the schema if appropriate
   (when unrestricted_table_access
-    (grant-permissions! group-id database-id schema-name))
+    ((resolve 'metabase.models.perissions/grant-permissions!) group-id database-id schema-name))
   (group-permissions-for-schema group-id database-id schema-name))
 
 ;;; ---------------------------------------- TablePermissions (/api/permissions/group/:id/table/:id) endpoints ----------------------------------------
@@ -288,7 +309,7 @@
   [group-id table-id]
   (check-superuser)
   (let-404 [{:keys [database-id schema]} (db/select-one [Table [:db_id :database-id] :schema], :id table-id)]
-    (let [object (object-path database-id schema table-id)]
+    (let [object (perms/object-path database-id schema table-id)]
       ;; delete any existing entries for the table
       (db/cascade-delete! Permissions :group_id group-id, :object [:like (str object "%")])
       ;; now create a new entry with full access
@@ -299,7 +320,7 @@
   [group-id table-id]
   (check-superuser)
   (let-404 [{:keys [database-id schema]} (db/select-one [Table [:db_id :database-id] :schema], :id table-id)]
-    (db/cascade-delete! Permissions :group_id group-id, :object [:like (str (object-path database-id schema table-id) "%")])))
+    (db/cascade-delete! Permissions :group_id group-id, :object [:like (str (perms/object-path database-id schema table-id) "%")])))
 
 
 (define-routes)
