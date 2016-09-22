@@ -218,14 +218,16 @@
    You can optionally include OTHER-CONDITIONS, which are anded into the filter clause, to further restrict what is deleted."
   {:style/indent 2}
   [group-id path & other-conditions]
-  (db/cascade-delete! Permissions
-    {:where (apply list
-                   :and
-                   [:= :group_id group-id]
-                   [:or
-                    [:like path (hx/concat :object (hx/literal "%"))]
-                    [:like :object (str path "%")]]
-                   other-conditions)}))
+  (let [where {:where (apply list
+                             :and
+                             [:= :group_id group-id]
+                             [:or
+                              [:like path (hx/concat :object (hx/literal "%"))]
+                              [:like :object (str path "%")]]
+                             other-conditions)}]
+    (when-let [revoked (db/select-field :object Permissions where)]
+      (log/info (u/format-color 'red "Revoking permissions for group %d: %s" group-id revoked))
+      (db/cascade-delete! Permissions where))))
 
 (defn- revoke-permissions!
   "Revoke permissions for Group with GROUP-ID to object with PATH-COMPONENTS."
@@ -238,12 +240,13 @@
    (grant-permissions! group-id (apply object-path db-id schema more)))
   ([group-id path]
    (try
+     (log/info (u/format-color 'green "Granting permissions for group %d: %s" group-id path))
      (db/insert! Permissions
        :group_id group-id
        :object   path)
      ;; on some occasions through weirdness we might accidentally try to insert a key that's already been inserted
      (catch Throwable e
-       (log/error (u/format-color 'red "Failed to grant permissions for group %d to '%s': %s" group-id path (.getMessage e)))))))
+       (log/error (u/format-color 'red "Failed to grant permissions: %s" (.getMessage e)))))))
 
 
 (defn- revoke-native-permissions! [group-id database-id] (delete-related-permissions! group-id (native-path database-id)))
@@ -272,9 +275,10 @@
     :none (revoke-permissions! group-id db-id schema table-id)))
 
 (s/defn ^:private ^:always-validate update-schema-perms! [group-id :- s/Int, db-id :- s/Int, schema :- s/Str, new-schema-perms :- SchemaPermissionsGraph]
+  (revoke-permissions! group-id db-id schema)
   (cond
     (= new-schema-perms :all)  (grant-permissions! group-id db-id schema)
-    (= new-schema-perms :none) (revoke-permissions! group-id db-id schema)
+    (= new-schema-perms :none) nil
     (map? new-schema-perms)    (doseq [[table-id table-perms] new-schema-perms]
                                  (update-table-perms! group-id db-id schema table-id table-perms))))
 
@@ -288,9 +292,10 @@
   (when-let [new-native-perms (:native new-db-perms)]
     (update-native-permissions! group-id db-id new-native-perms))
   (when-let [schemas (:schemas new-db-perms)]
+    (revoke-db-permissions! group-id db-id)
     (cond
       (= schemas :all)  (grant-full-db-permissions! group-id db-id)
-      (= schemas :none) (revoke-db-permissions! group-id db-id)
+      (= schemas :none) nil
       (map? schemas)    (doseq [schema (keys schemas)]
                           (update-schema-perms! group-id db-id schema (get-in new-db-perms [:schemas schema]))))))
 
@@ -330,7 +335,7 @@
   (let [old-graph (graph)
         [old new] (data/diff (:groups old-graph) (:groups new-graph))]
     (when (or (seq old) (seq new))
-      (log/info (format "Updating permissions! 🔏\nOLD:\n%s\nNEW:\n%s"
+      (log/info (format "Changing permissions: 🔏\nFROM:\n%s\nTO:\n%s"
                         (u/pprint-to-str 'magenta old)
                         (u/pprint-to-str 'blue new)))
       (check-revision-numbers old-graph new-graph)
