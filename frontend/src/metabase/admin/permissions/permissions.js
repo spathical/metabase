@@ -1,64 +1,95 @@
-import { AngularResourceProxy, createThunkAction, handleActions, combineReducers } from "metabase/lib/redux";
+import { createAction, createThunkAction, handleActions, combineReducers, AngularResourceProxy } from "metabase/lib/redux";
 
-const MetabaseAPI = new AngularResourceProxy("Metabase", ["db_list"]);
-const PermissionsAPI = new AngularResourceProxy("Permissions", ["groups", "groupDetails", "databaseDetails", "databasePermissions", "schemaPermissions"]);
-const UsersAPI = new AngularResourceProxy("User", ["list"]);
+import _ from "underscore";
 
-export const FETCH_PERMISSIONS_GROUPS = "FETCH_PERMISSIONS_GROUPS";
-export const FETCH_PERMISSIONS_GROUP_DETAILS = "FETCH_PERMISSIONS_GROUP_DETAILS";
-export const FETCH_DATABASES = "FETCH_DATABASES";
-export const FETCH_DATABASE_PERMISSIONS_DETAILS = "FETCH_DATABASE_PERMISSIONS_DETAILS";
-export const FETCH_DATABASE_PERMISSIONS = "FETCH_DATABASE_PERMISSIONS";
-export const PERMISSIONS_FETCH_USERS = "PERMISSIONS_FETCH_USERS";
-export const FETCH_SCHEMA_PERMISSIONS = "FETCH_SCHEMA_PERMISSIONS";
+const MetadataApi = new AngularResourceProxy("Metabase", ["db_list_with_tables"]);
+const PermissionsApi = new AngularResourceProxy("Permissions", ["groups", "graph", "updateGraph"]);
 
-// ACTIONS
+import { getIn, setIn } from "icepick";
 
-function thunkActionHandler(actionType, APIFunction, prepareArgsFn) {
-    return createThunkAction(actionType, function() {
-        const args = arguments;
-        return async function(dispatch, getState) {
-            return await APIFunction.apply(null, prepareArgsFn ? prepareArgsFn.apply(null, args) : args);
-        };
-    });
-}
+const INITIALIZE = "metabase/admin/permissions/INITIALIZE";
+export const initialize = createThunkAction(INITIALIZE, () =>
+    async (dispatch, getState) => {
+        await Promise.all([
+            dispatch(loadPermissions()),
+            dispatch(loadGroups()),
+            dispatch(loadMetadata())
+        ]);
+    }
+);
 
-export const fetchGroups = thunkActionHandler(FETCH_PERMISSIONS_GROUPS, PermissionsAPI.groups);
-export const fetchDatabases = thunkActionHandler(FETCH_DATABASES, MetabaseAPI.db_list);
-export const fetchGroupDetails = thunkActionHandler(FETCH_PERMISSIONS_GROUP_DETAILS, PermissionsAPI.groupDetails,
-                                                        (id) => [{id: id}]);
-export const fetchDatabaseDetails = thunkActionHandler(FETCH_DATABASE_PERMISSIONS_DETAILS, PermissionsAPI.databaseDetails,
-                                                           (id) => [{id: id}]);
-export const fetchDatabasePermissions = thunkActionHandler(FETCH_DATABASE_PERMISSIONS, PermissionsAPI.databasePermissions,
-                                                               (databaseID, groupID) => [{databaseID: databaseID, groupID: groupID}]);
-export const fetchUsers = thunkActionHandler(PERMISSIONS_FETCH_USERS, UsersAPI.list);
-export const fetchSchemaPermissions = thunkActionHandler(FETCH_SCHEMA_PERMISSIONS, PermissionsAPI.schemaPermissions);
+const LOAD_PERMISSIONS = "metabase/admin/permissions/LOAD_PERMISSIONS";
+export const loadPermissions = createAction(LOAD_PERMISSIONS, () => PermissionsApi.graph());
 
-function actionHandler(actionType) {
-    return handleActions({
-        [actionType]: {
-            next: function(state, { payload }) {
-                return payload;
-            }
-        }
-    }, null);
-}
+const LOAD_GROUPS = "metabase/admin/permissions/LOAD_GROUPS";
+export const loadGroups = createAction(LOAD_GROUPS, () => PermissionsApi.groups());
 
-// REDUCERS
-const groups = actionHandler(FETCH_PERMISSIONS_GROUPS);
-const group = actionHandler(FETCH_PERMISSIONS_GROUP_DETAILS);
-const databases = actionHandler(FETCH_DATABASES);
-const database = actionHandler(FETCH_DATABASE_PERMISSIONS_DETAILS);
-const databasePermissions = actionHandler(FETCH_DATABASE_PERMISSIONS);
-const users = actionHandler(PERMISSIONS_FETCH_USERS);
-const schemaPermissions = actionHandler(FETCH_SCHEMA_PERMISSIONS);
+const LOAD_METADATA = "metabase/admin/permissions/LOAD_METADATA";
+export const loadMetadata = createAction(LOAD_METADATA, () => MetadataApi.db_list_with_tables());
+
+const UPDATE_PERMISSION = "metabase/admin/permissions/UPDATE_PERMISSION";
+export const updatePermission = createAction(UPDATE_PERMISSION);
+
+const SAVE_PERMISSIONS = "metabase/admin/permissions/SAVE_PERMISSIONS";
+export const savePermissions = createThunkAction(SAVE_PERMISSIONS, () =>
+    async (dispatch, getState) => {
+        const { permissions, revision } = getState().permissions;
+        let result = await PermissionsApi.updateGraph({
+            revision: revision,
+            groups: permissions
+        });
+        return result;
+    }
+)
+
+
+const permissions = handleActions({
+    [LOAD_PERMISSIONS]: { next: (state, { payload }) => payload.groups },
+    [SAVE_PERMISSIONS]: { next: (state, { payload }) => payload.groups },
+    [UPDATE_PERMISSION]: { next: (state, { payload: { groupId, entityId, value, updater } }) => {
+        return updater(state, groupId, entityId, value);
+    }}
+}, null);
+
+const originalPermissions = handleActions({
+    [LOAD_PERMISSIONS]: { next: (state, { payload }) => payload.groups },
+    [SAVE_PERMISSIONS]: { next: (state, { payload }) => payload.groups },
+}, null);
+
+const revision = handleActions({
+    [LOAD_PERMISSIONS]: { next: (state, { payload }) => payload.revision },
+    [SAVE_PERMISSIONS]: { next: (state, { payload }) => payload.revision },
+}, null);
+
+const groups = handleActions({
+    [LOAD_GROUPS]: { next: (state, { payload }) =>
+        // special case admin group to be non-editable
+        payload && payload.map(group => ({
+            ...group,
+            editable: group.name !== "Admin"
+        }))
+    },
+}, null);
+
+const databases = handleActions({
+    [LOAD_METADATA]: { next: (state, { payload }) => payload },
+}, null);
+
+const saveError = handleActions({
+    [SAVE_PERMISSIONS]: {
+        next: (state) => null,
+        throw: (state, { payload }) => payload && payload.data
+    },
+    [LOAD_PERMISSIONS]: {
+        next: (state) => null,
+    }
+}, null);
 
 export default combineReducers({
+    permissions,
+    originalPermissions,
+    saveError,
+    revision,
     groups,
-    group,
-    databases,
-    database,
-    databasePermissions,
-    users,
-    schemaPermissions
+    databases
 });

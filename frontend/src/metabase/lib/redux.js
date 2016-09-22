@@ -108,11 +108,11 @@ export const cleanResource = (resource) => Object.keys(resource)
     .reduce((map, key) => Object.assign({}, map, {[key]: resource[key]}), {});
 
 export const fetchData = async ({
-    dispatch, 
-    getState, 
-    requestStatePath, 
-    existingStatePath, 
-    getData, 
+    dispatch,
+    getState,
+    requestStatePath,
+    existingStatePath,
+    getData,
     reload
 }) => {
     const existingData = i.getIn(getState(), existingStatePath);
@@ -137,11 +137,11 @@ export const fetchData = async ({
 }
 
 export const updateData = async ({
-    dispatch, 
-    getState, 
-    requestStatePath, 
+    dispatch,
+    getState,
+    requestStatePath,
     existingStatePath,
-    // specify any request paths that need to be invalidated after this update 
+    // specify any request paths that need to be invalidated after this update
     dependentRequestStatePaths,
     putData
 }) => {

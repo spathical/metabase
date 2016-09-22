@@ -1,0 +1,10 @@
+:local .cellButton {
+    composes: flex flex-full align-center justify-center rounded from "style";
+    width: 64px;
+    height: 64px;
+}
+
+:local .cellButton__editable:hover {
+    box-shadow: 0 0 8px 0 rgba(0,0,0,0.15);
+    transition: box-shadow 150ms linear;
+}

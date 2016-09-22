@@ -48,7 +48,7 @@ import ReferenceFieldsList from "metabase/reference/containers/ReferenceFieldsLi
 import ReferenceRevisionsList from "metabase/reference/containers/ReferenceRevisionsList.jsx";
 import ReferenceGettingStartedGuide from "metabase/reference/containers/ReferenceGettingStartedGuide.jsx";
 
-import adminPermissionsRoutes from "metabase/admin/permissions/routes.jsx";
+import getAdminPermissionsRoutes from "metabase/admin/permissions/routes.jsx";
 
 const MetabaseIsSetup = UserAuthWrapper({
     predicate: authData => !authData.hasSetupToken,
@@ -191,7 +191,7 @@ export const getRoutes = (store) =>
                 <Route path="settings" component={SettingsEditorApp} />
                 <Route path="settings/:section" component={SettingsEditorApp} />
 
-                {adminPermissionsRoutes}
+                {getAdminPermissionsRoutes(store)}
             </Route>
 
             {/* MISC */}

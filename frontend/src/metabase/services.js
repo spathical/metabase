@@ -602,6 +602,14 @@ CoreServices.factory('Permissions', ['$resource', function($resource) {
             url: '/api/permissions/group',
             isArray: true
         },
+        graph: {
+            method: 'GET',
+            url: '/api/permissions/graph',
+        },
+        updateGraph: {
+            method: 'PUT',
+            url: '/api/permissions/graph',
+        },
         groupDetails: {
             method: 'GET',
             url: '/api/permissions/group/:id',
