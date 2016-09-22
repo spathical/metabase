@@ -38,7 +38,6 @@ databaseChangeLog:
                   name: created_at
                   type: datetime
                   remarks: 'The timestamp of when these changes were made.'
-                  defaultValueComputed: 'now()'
                   constraints:
                     nullable: false
               - column:

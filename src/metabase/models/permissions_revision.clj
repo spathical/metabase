@@ -5,12 +5,16 @@
 
 (i/defentity PermissionsRevision :permissions_revision)
 
+(defn- pre-insert [revision]
+  (assoc revision :created_at (u/new-sql-timestamp)))
+
 (u/strict-extend (class PermissionsRevision)
   i/IEntity
   (merge i/IEntityDefaults
          {:types      (constantly {:before :json
                                    :after  :json
                                    :remark :clob})
+          :pre-insert pre-insert
           :pre-update (fn [& _] (throw (Exception. "You cannot update a PermissionsRevision!")))}))
 
 
