@@ -1,11 +1,6 @@
 (ns metabase.api.permissions
   "/api/permissions endpoints."
-  (:require [clojure.data :as data]
-            [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [compojure.core :refer [GET POST PUT DELETE]]
-            [medley.core :as m]
-            [schema.core :as s]
+  (:require [compojure.core :refer [GET POST PUT DELETE]]
             [metabase.api.common :refer :all]
             [metabase.db :as db]
             (metabase.models [database :as database]
@@ -13,247 +8,14 @@
                              [permissions :refer [Permissions], :as permissions]
                              [permissions-group :refer [PermissionsGroup], :as group]
                              [permissions-group-membership :refer [PermissionsGroupMembership]]
-                             [permissions-revision :refer [PermissionsRevision]]
                              [table :refer [Table]])
-            [metabase.util :as u]
-            [metabase.util.honeysql-extensions :as hx]))
-
+            [metabase.util :as u]))
 
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
-;;; |                                                                      UTIL FNS                                                                        |
+;;; |                                                             PERMISSIONS GRAPH ENDPOINTS                                                              |
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-
-(defn- object-path
-  (^String [database-id]                      (str "/db/" database-id "/"))
-  (^String [database-id schema-name]          (str (object-path database-id) "schema/" schema-name "/"))
-  (^String [database-id schema-name table-id] (str (object-path database-id schema-name) "table/" table-id "/" )))
-
-(defn- native-path      ^String [database-id] (str (object-path database-id) "native/"))
-(defn- all-schemas-path ^String [database-id] (str (object-path database-id) "schema/"))
-
-
-;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
-;;; |                                                                     GRAPH SCHEMA                                                                     |
-;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
-
-(def ^:private TablePermissionsGraph
-  (s/enum :none :all))
-
-(def ^:private SchemaPermissionsGraph
-  (s/cond-pre (s/enum :none :all)
-              {s/Int TablePermissionsGraph}))
-
-(def ^:private NativePermissionsGraph
-  (s/enum :write :read))
-
-(def ^:private DBPermissionsGraph
-  {(s/optional-key :native)  NativePermissionsGraph
-   (s/optional-key :schemas) (s/cond-pre (s/enum :none :all)
-                                         {(s/maybe s/Str) SchemaPermissionsGraph})})
-
-(def ^:private GroupPermissionsGraph
-  {s/Int DBPermissionsGraph})
-
-(def ^:private PermissionsGraph
-  {:revision s/Int
-   :groups   {s/Int GroupPermissionsGraph}})
-
-
-;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
-;;; |                                                                     GRAPH FETCH                                                                      |
-;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
-
-(defn- is-permissions-for-object?
-  "Does PERMISSIONS-PATH grant *full* access for PATH?"
-  [path permissions-path]
-  (str/starts-with? path permissions-path))
-
-(defn- is-partial-permissions-for-object?
-  "Does PERMISSIONS-PATH grant access for a descendant of PATH?"
-  [path permissions-path]
-  (str/starts-with? permissions-path path))
-
-(defn- permissions-for-path [permissions-set path]
-  (u/prog1 (cond
-             (some (partial is-permissions-for-object? path) permissions-set)         :all
-             (some (partial is-partial-permissions-for-object? path) permissions-set) :some
-             :else                                                                    :none)))
-
-(defn- table->db-object-path     [table] (object-path (:db_id table)))
-(defn- table->native-path        [table] (native-path (:db_id table)))
-(defn- table->all-schemas-path   [table] (all-schemas-path (:db_id table)))
-(defn- table->schema-object-path [table] (object-path (:db_id table) (:schema table)))
-(defn- table->table-object-path  [table] (object-path (:db_id table) (:schema table) (:id table)))
-
-(defn- fetch-tables [] (db/select ['Table :schema :id :db_id]))
-
-(s/defn ^:private schema-graph :- SchemaPermissionsGraph [permissions-set tables]
-  (case (permissions-for-path permissions-set (table->schema-object-path (first tables)))
-    :all  :all
-    :none :none
-    :some (into {} (for [table tables]
-                     {(:id table) (permissions-for-path permissions-set (table->table-object-path table))}))))
-
-(s/defn ^:private db-graph :- DBPermissionsGraph [permissions-set tables]
-  {:native  (case (permissions-for-path permissions-set (table->native-path (first tables)))
-              :all  :write
-              :none :read)
-   :schemas (case (permissions-for-path permissions-set (table->all-schemas-path (first tables)))
-              :all  :all
-              :none :none
-              (m/map-vals (partial schema-graph permissions-set)
-                          (group-by :schema tables)))})
-
-(s/defn ^:private group-graph :- GroupPermissionsGraph [permissions-set tables]
-  (m/map-vals (partial db-graph permissions-set)
-              tables))
-
-;; TODO - if a DB has no tables, then it won't show up in the permissions graph!
-(s/defn ^:private ^:always-validate graph :- PermissionsGraph []
-  (let [permissions (db/select [Permissions :group_id :object])
-        tables      (group-by :db_id (fetch-tables))]
-    {:revision (or (db/select-one-id PermissionsRevision {:order-by [[:id :desc]]})
-                   0)
-     :groups   (into {} (for [group-id (db/select-ids PermissionsGroup)]
-                          (let [group-permissions-set (set (for [perms permissions
-                                                                 :when (= (:group_id perms) group-id)]
-                                                             (:object perms)))]
-                            {group-id (group-graph group-permissions-set tables)})))}))
-
-(defendpoint GET "/graph"
-  "Fetch a graph of all Permissions."
-  []
-  (check-superuser)
-  (graph))
-
-
-;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
-;;; |                                                                     GRAPH UPDATE                                                                     |
-;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
-
-;;; ---------------------------------------- Helper Fns ----------------------------------------
-
-(defn- delete-related-permissions!
-  "Delete are permissions that for ancestors or descendant objects."
-  {:style/indent 2}
-  [group-id path & other-conditions]
-  (db/cascade-delete! Permissions
-    {:where (apply list
-                   :and
-                   [:= :group_id group-id]
-                   [:or
-                    [:like path (hx/concat :object (hx/literal "%"))]
-                    [:like :object (str path "%")]]
-                   other-conditions)}))
-
-(defn- grant-permissions!
-  ([group-id db-id schema & more]
-   (grant-permissions! apply object-path db-id schema more))
-  ([group-id path]
-   (try
-     (db/insert! Permissions
-       :group_id group-id
-       :object   path)
-     ;; on some occasions through weirdness we might accidentally try to insert a key that's already been inserted
-     (catch Throwable e
-       (log/error (u/format-color 'red "Failed to grant permissions for group %d to '%s': %s" group-id path (.getMessage e)))))))
-
-(defn- revoke-native-permissions! [group-id database-id]
-  (delete-related-permissions! group-id (native-path database-id)))
-
-(defn- grant-native-permissions! [group-id database-id]
-  (grant-permissions! group-id (native-path database-id)))
-
-(defn- revoke-db-permissions!
-  "Remove all permissions entires for a DB and any child objects.
-   This does *not* revoke native permissions; use `revoke-native-permssions!` to do that."
-  [group-id database-id]
-  (delete-related-permissions! group-id (object-path database-id)
-    [:not= :object (native-path database-id)]))
-
-(defn- grant-full-db-permissions!
-  "Grant full permissions for all schemas belonging to this database.
-   This does *not* grant native permissions; use `grant-native-permissions!` to do that."
-  [group-id database-id]
-  (grant-permissions! group-id (all-schemas-path database-id)))
-
-(defn- revoke-permissions! [group-id & path-components]
-  (delete-related-permissions! group-id (apply object-path path-components)))
-
-
-;;; ---------------------------------------- Graph Updating Fns ----------------------------------------
-
-(s/defn ^:private ^:always-validate update-table-perms! [group-id :- s/Int, db-id :- s/Int, schema :- s/Str, table-id :- s/Int, new-table-perms :- SchemaPermissionsGraph]
-  (case new-table-perms
-    :all  (grant-permissions! group-id db-id schema table-id)
-    :none (revoke-permissions! group-id db-id schema table-id)))
-
-(s/defn ^:private ^:always-validate update-schema-perms! [group-id :- s/Int, db-id :- s/Int, schema :- s/Str, new-schema-perms :- SchemaPermissionsGraph]
-  (cond
-    (= new-schema-perms :all)  (grant-permissions! group-id db-id schema)
-    (= new-schema-perms :none) (revoke-permissions! group-id db-id schema)
-    (map? new-schema-perms)    (doseq [[table-id table-perms] new-schema-perms]
-                                 (update-table-perms! group-id db-id schema table-id table-perms))))
-
-(s/defn ^:private ^:always-validate update-native-permissions! [group-id :- s/Int, db-id :- s/Int, new-native-perms :- NativePermissionsGraph]
-  (case new-native-perms
-    :write (grant-native-permissions! group-id db-id)
-    :read  (revoke-native-permissions! group-id db-id)))
-
-
-(s/defn ^:private ^:always-validate update-db-permissions! [group-id :- s/Int, db-id :- s/Int, new-db-perms :- DBPermissionsGraph]
-  (when-let [new-native-perms (:native new-db-perms)]
-    (update-native-permissions! group-id db-id new-native-perms))
-  (when-let [schemas (:schemas new-db-perms)]
-    (cond
-      (= schemas :all)  (grant-full-db-permissions! group-id db-id)
-      (= schemas :none) (revoke-db-permissions! group-id db-id)
-      (map? schemas)    (doseq [schema (keys schemas)]
-                          (update-schema-perms! group-id db-id schema (get-in new-db-perms [:schemas schema]))))))
-
-(s/defn ^:private ^:always-validate update-group-permissions! [group-id :- s/Int, new-group-perms :- GroupPermissionsGraph]
-  (doseq [db-id (keys new-group-perms)]
-    (update-db-permissions! group-id db-id (get new-group-perms db-id))))
-
-
-(defn- check-revision-numbers
-  "Check that the revision number coming in as part of NEW-GRAPH matches the one from OLD-GRAPH.
-   This way we can make sure people don't submit a new graph based on something out of date,
-   which would otherwise stomp over changes made in the interim.
-   Return a 409 (Conflict) if the numbers don't match up."
-  [old-graph new-graph]
-  (when (not= (:revision old-graph) (:revision new-graph))
-    (throw (ex-info "Looks like someone else edited the permissions and your data is out of date. Please fetch new data and try again."
-             {:status-code 409}))))
-
-(defn- save-permissions-revision!
-  "Save changes made to the permissions graph for logging/auditing purposes."
-  [old new]
-  ;; Don't try to do anything if *current-user-id* isn't set, because it will fail. This way we can still use `update-graph!` from tests or the REPL
-  (when *current-user-id*
-    (db/insert! PermissionsRevision
-      :before  old
-      :after   new
-      :user_id *current-user-id*)))
-
-
-(s/defn ^:private ^:always-validate update-graph!
-  "Update the permissions graph, making any changes neccesary to make it match NEW-GRAPH. "
-  [new-graph :- PermissionsGraph]
-  (let [old-graph (graph)
-        [old new] (data/diff (:groups old-graph) (:groups new-graph))]
-    (when (or (seq old) (seq new))
-      (log/info (format "Updating permissions! 🔏\nOLD:\n%s\nNEW:\n%s"
-                        (u/pprint-to-str 'magenta old)
-                        (u/pprint-to-str 'blue new)))
-      (check-revision-numbers old-graph new-graph)
-      (save-permissions-revision! old new)
-      (doseq [group-id (keys new)]
-        (update-group-permissions! group-id (get new group-id))))))
-
-
-;;; ---------------------------------------- DEJSONIFACTION ----------------------------------------
+;;; ---------------------------------------- DeJSONifaction ----------------------------------------
 
 (defn- ->int [id] (Integer/parseInt (name id)))
 
@@ -284,7 +46,14 @@
   (update graph :groups dejsonify-groups))
 
 
-;;; ---------------------------------------- Endpoint ----------------------------------------
+;;; ---------------------------------------- Endpoints ----------------------------------------
+
+(defendpoint GET "/graph"
+  "Fetch a graph of all Permissions."
+  []
+  (check-superuser)
+  (permissions/graph))
+
 
 (defendpoint PUT "/graph"
   "Do a batch update of Permissions by passing in a modified graph. This should return the same graph,
@@ -298,10 +67,8 @@
   [:as {body :body}]
   {body [Required Dict]}
   (check-superuser)
-  (update-graph! (dejsonify-graph body))
-  (graph))
-
-
+  (permissions/update-graph! (dejsonify-graph body))
+  (permissions/graph))
 
 
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+

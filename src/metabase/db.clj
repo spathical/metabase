@@ -290,7 +290,7 @@
 
 (defmacro transaction
   "Execute all queries within the body in a single transaction."
-  {:arglists '([body] [options & body])}
+  {:arglists '([body] [options & body]), :style/indent 0}
   [& body]
   `(do-in-transaction (fn [] ~@body)))
 
