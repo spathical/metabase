@@ -15,6 +15,22 @@ import cx from "classnames";
 
 import S from "./PermissionsGrid.css";
 
+const LIGHT_BORDER = "rgb(225, 226, 227)";
+const DARK_BORDER = "rgb(114, 116, 121)";
+const BORDER_RADIUS = 4;
+
+const getBorderStyles = ({ isFirstColumn, isLastColumn, isFirstRow, isLastRow }) => ({
+    overflow: "hidden",
+    border: "1px solid " + LIGHT_BORDER,
+    borderBottomWidth: isLastRow ? 1 : 0,
+    borderRightWidth: isLastColumn ? 1 : 0,
+    borderLeftColor: isFirstColumn ? LIGHT_BORDER : DARK_BORDER,
+    borderTopRightRadius: isLastColumn && isFirstRow ? BORDER_RADIUS : 0,
+    borderTopLeftRadius: isFirstColumn && isFirstRow ? BORDER_RADIUS : 0,
+    borderBottomRightRadius: isLastColumn && isLastRow ? BORDER_RADIUS : 0,
+    borderBottomLeftRadius: isFirstColumn && isLastRow ? BORDER_RADIUS : 0,
+})
+
 const CELL_HEIGHT = 176;
 const CELL_WIDTH = 246;
 const HEADER_HEIGHT = 100;
@@ -109,20 +125,22 @@ for (const id in PERMISSION_TYPES) {
     }
 }
 
-const GroupPermissionHeader = ({ group, permissions }) =>
-    <div className="absolute bottom left right border-column-divider">
+const GroupPermissionHeader = ({ group, permissions, isLastColumn, isFirstColumn }) =>
+    <div className="absolute bottom left right">
         <h3 className="text-centered full my1">{ group.name }</h3>
-        <div className="flex border-bottom border-top">
-            { permissions.map(permission =>
-                <div key={permission.id} className="flex-full text-centered border-column-divider py1">
+        <div className="flex" style={getBorderStyles({ isLastColumn, isFirstColumn, isFirstRow: true, isLastRow: false })}>
+            { permissions.map((permission, index) =>
+                <div key={permission.id} className="flex-full text-centered py1 border-column-divider" style={{
+                    borderColor: LIGHT_BORDER,
+                }}>
                     <h3>{permission.header}</h3>
                 </div>
             )}
         </div>
     </div>
 
-const GroupPermissionRow = ({ group, permissions, entity, data, onUpdatePermission }) =>
-    <div className="flex border-bottom">
+const GroupPermissionRow = ({ group, permissions, entity, data, onUpdatePermission, isLastRow, isLastColumn, isFirstColumn }) =>
+    <div className="flex" style={getBorderStyles({ isLastRow, isLastColumn, isFirstColumn, isFirstRow: false })}>
         { permissions.map(permission =>
             <GroupPermissionCell
                 key={permission.id}
@@ -148,8 +166,9 @@ const GroupPermissionCell = ({ permission, value, onUpdatePermission, isEditable
     }
 
     return (
-        <div className="flex-full flex layout-centered" style={{
-            height: CELL_HEIGHT,
+        <div className="flex-full flex layout-centered border-column-divider" style={{
+            borderColor: LIGHT_BORDER,
+            height: CELL_HEIGHT - 1,
             backgroundColor: permission.options[value].bgColor
         }}>
             <PopoverWithTrigger
@@ -237,17 +256,25 @@ const PermissionsGrid = ({ className, grid, onUpdatePermission }) => {
                     entity={grid.entities[rowIndex]}
                     data={grid.data[rowIndex] && grid.data[rowIndex][columnIndex]}
                     onUpdatePermission={onUpdatePermission}
+                    isFirstRow={rowIndex === 0}
+                    isLastRow={rowIndex === grid.entities.length - 1}
+                    isFirstColumn={columnIndex === 0}
+                    isLastColumn={columnIndex === grid.groups.length - 1}
                 />
             }
             renderColumnHeader={({ columnIndex }) =>
                 <GroupPermissionHeader
                     group={grid.groups[columnIndex]}
                     permissions={permissions}
+                    isFirstColumn={columnIndex === 0}
+                    isLastColumn={columnIndex === grid.groups.length - 1}
                 />
             }
             renderRowHeader={({ rowIndex }) =>
                 <EntityPermissionHeader
                     entity={grid.entities[rowIndex]}
+                    isFirstRow={rowIndex === 0}
+                    isLastRow={rowIndex === grid.entities.length - 1}
                 />
             }
             renderCorner={() =>
