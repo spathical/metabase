@@ -127,13 +127,13 @@ for (const id in PERMISSION_TYPES) {
 
 const GroupPermissionHeader = ({ group, permissions, isLastColumn, isFirstColumn }) =>
     <div className="absolute bottom left right">
-        <h3 className="text-centered full my1">{ group.name }</h3>
+        <h4 className="text-centered full my1">{ group.name }</h4>
         <div className="flex" style={getBorderStyles({ isLastColumn, isFirstColumn, isFirstRow: true, isLastRow: false })}>
             { permissions.map((permission, index) =>
-                <div key={permission.id} className="flex-full text-centered py1 border-column-divider" style={{
+                <div key={permission.id} className="flex-full py1 border-column-divider" style={{
                     borderColor: LIGHT_BORDER,
                 }}>
-                    <h3>{permission.header}</h3>
+                    <h5 className="text-centered text-grey-3 text-uppercase text-light">{permission.header}</h5>
                 </div>
             )}
         </div>
@@ -218,19 +218,21 @@ const EntityPermissionHeader = ({ entity }) =>
             height: CELL_HEIGHT
         }}
     >
-        <h3>{entity.name}</h3>
+        <h4>{entity.name}</h4>
         { entity.link &&
-            <Link to={entity.link.url}>{entity.link.name}</Link>
+            <Link className="mt1 link" to={entity.link.url}>{entity.link.name}</Link>
         }
     </div>
 
 const CornerHeader = ({ grid }) =>
     <div className="absolute bottom left right flex flex-column align-center pb1">
+        { grid.type !== "database" &&
+            <a className="link mb1" href="#" onClick={() => window.history.back()}>Back</a>
+        }
         <div className="flex align-center">
             <Icon name={grid.type} size={16} />
             <h3 className="ml1">{capitalize(pluralize(grid.type))}</h3>
         </div>
-        { grid.type !== "database" && <a href="#" onClick={() => window.history.back()}>Back</a> }
     </div>
 
 const PermissionsGrid = ({ className, grid, onUpdatePermission }) => {
