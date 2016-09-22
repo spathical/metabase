@@ -5,6 +5,8 @@ import React, { Component, PropTypes } from "react";
 import { Grid, AutoSizer, ScrollSync } from 'react-virtualized'
 import 'react-virtualized/styles.css'; // only needs to be imported once
 
+import S from "./FixedHeaderGrid.css";
+
 import cx from "classnames";
 
 const SCROLLBAR_SIZE = 10;
@@ -28,7 +30,7 @@ const FixedHeaderGrid = ({
 
     paddingBottom = 25
 }) =>
-    <div className={cx(className, "relative")}>
+    <div className={cx(className, S.fixedHeaderGrid, "relative")}>
         <AutoSizer>
         {({ height, width }) =>
             <ScrollSync>
