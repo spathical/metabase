@@ -213,12 +213,12 @@ const AccessOptionList = ({ permission, onUpdatePermission }) =>
 
 const EntityPermissionHeader = ({ entity }) =>
     <div
-        className="flex flex-column layout-centered"
+        className="flex flex-column layout-centered px1"
         style={{
             height: CELL_HEIGHT
         }}
     >
-        <h4>{entity.name}</h4>
+        <h4 className="text-centered">{entity.name}</h4>
         { entity.link &&
             <Link className="mt1 link" to={entity.link.url}>{entity.link.name}</Link>
         }
