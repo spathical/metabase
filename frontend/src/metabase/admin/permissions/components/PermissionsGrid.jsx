@@ -22,7 +22,7 @@ const BORDER_RADIUS = 4;
 const getBorderStyles = ({ isFirstColumn, isLastColumn, isFirstRow, isLastRow }) => ({
     overflow: "hidden",
     border: "1px solid " + LIGHT_BORDER,
-    borderBottomWidth: isLastRow ? 1 : 0,
+    borderTopWidth: isFirstRow ? 1 : 0,
     borderRightWidth: isLastColumn ? 1 : 0,
     borderLeftColor: isFirstColumn ? LIGHT_BORDER : DARK_BORDER,
     borderTopRightRadius: isLastColumn && isFirstRow ? BORDER_RADIUS : 0,
