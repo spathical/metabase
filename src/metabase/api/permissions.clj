@@ -13,6 +13,7 @@
                              [permissions :refer [Permissions], :as permissions]
                              [permissions-group :refer [PermissionsGroup], :as group]
                              [permissions-group-membership :refer [PermissionsGroupMembership]]
+                             [permissions-revision :refer [PermissionsRevision]]
                              [table :refer [Table]])
             [metabase.util :as u]
             [metabase.util.honeysql-extensions :as hx]))
@@ -112,7 +113,8 @@
 (s/defn ^:private ^:always-validate graph :- PermissionsGraph []
   (let [permissions (db/select [Permissions :group_id :object])
         tables      (group-by :db_id (fetch-tables))]
-    {:revision 1
+    {:revision (or (db/select-one-id PermissionsRevision {:order-by [[:id :desc]]})
+                   0)
      :groups   (into {} (for [group-id (db/select-ids PermissionsGroup)]
                           (let [group-permissions-set (set (for [perms permissions
                                                                  :when (= (:group_id perms) group-id)]
@@ -214,6 +216,7 @@
   (doseq [db-id (keys new-group-perms)]
     (update-db-permissions! group-id db-id (get new-group-perms db-id))))
 
+
 (defn- check-revision-numbers
   "Check that the revision number coming in as part of NEW-GRAPH matches the one from OLD-GRAPH.
    This way we can make sure people don't submit a new graph based on something out of date,
@@ -224,6 +227,17 @@
     (throw (ex-info "Looks like someone else edited the permissions and your data is out of date. Please fetch new data and try again."
              {:status-code 409}))))
 
+(defn- save-permissions-revision!
+  "Save changes made to the permissions graph for logging/auditing purposes."
+  [old new]
+  ;; Don't try to do anything if *current-user-id* isn't set, because it will fail. This way we can still use `update-graph!` from tests or the REPL
+  (when *current-user-id*
+    (db/insert! PermissionsRevision
+      :before  old
+      :after   new
+      :user_id *current-user-id*)))
+
+
 (s/defn ^:private ^:always-validate update-graph!
   "Update the permissions graph, making any changes neccesary to make it match NEW-GRAPH. "
   [new-graph :- PermissionsGraph]
@@ -232,11 +246,11 @@
     (when (or (seq old) (seq new))
       (log/info (format "Updating permissions! 🔏\nOLD:\n%s\nNEW:\n%s"
                         (u/pprint-to-str 'magenta old)
-                        (u/pprint-to-str 'blue new))))
-    (check-revision-numbers old-graph new-graph)
-    ;; TODO - Need to save this graph diff somewhere for logging / audit purposes
-    (doseq [group-id (keys new)]
-      (update-group-permissions! group-id (get new group-id)))))
+                        (u/pprint-to-str 'blue new)))
+      (check-revision-numbers old-graph new-graph)
+      (save-permissions-revision! old new)
+      (doseq [group-id (keys new)]
+        (update-group-permissions! group-id (get new group-id))))))
 
 
 ;;; ---------------------------------------- DEJSONIFACTION ----------------------------------------

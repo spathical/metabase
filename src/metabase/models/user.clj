@@ -80,6 +80,7 @@
                      ['Segment                    :creator_id]
                      ['Session                    :user_id]
                      ['PermissionsGroupMembership :user_id]
+                     ['PermissionsRevision        :user_id]
                      ['ViewLog                    :user_id]]]
     (db/cascade-delete! model k id)))
 

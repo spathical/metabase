@@ -63,9 +63,9 @@
 (u/strict-extend (class Revision)
   i/IEntity
   (merge i/IEntityDefaults
-         {:types        (constantly {:object :json, :message :clob})
-          :pre-insert   (u/rpartial assoc :timestamp (u/new-sql-timestamp))
-          :pre-update   (fn [& _] (throw (Exception. "You cannot update a Revision!")))}))
+         {:types      (constantly {:object :json, :message :clob})
+          :pre-insert (u/rpartial assoc :timestamp (u/new-sql-timestamp))
+          :pre-update (fn [& _] (throw (Exception. "You cannot update a Revision!")))}))
 
 
 ;;; # Functions
