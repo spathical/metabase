@@ -107,9 +107,9 @@ export const getPermissionsGrid = createSelector(
             let schemaName = params.schemaName;
             if (databaseId != null && schemaName != null) {
                 let database = _.findWhere(databases, { id: databaseId });
-                let tables = database.tables.filter(table => table.schema === schemaName);
+                let tables = database.tables.filter(table => (table.schema || "") === schemaName);
 
-                let schemaNames = _.uniq(database.tables.map(table => table.schema));
+                let schemaNames = _.uniq(database.tables.map(table => (table.schema || "")));
                 let tableIds = tables.map(table => table.id);
 
                 return {
@@ -139,13 +139,13 @@ export const getPermissionsGrid = createSelector(
                 }
             } else if (databaseId != null) {
                 let database = _.findWhere(databases, { id: databaseId });
-                let schemaNames = _.uniq(database.tables.map(table => table.schema));
+                let schemaNames = _.uniq(database.tables.map(table => (table.schema || "")));
                 return {
                     type: "schema",
                     groups,
                     permissions: {
                         "tables": (perms, groupId, { databaseId, schemaName }, value) => {
-                            let tableIds = database.tables.filter(table => table.schema === schemaName).map(table => table.id);
+                            let tableIds = database.tables.filter(table => (table.schema || "") === schemaName).map(table => table.id);
                             perms = updatePermission(perms, [groupId, databaseId, "schemas"], "controlled", schemaNames);
                             perms = updatePermission(perms, [groupId, databaseId, "schemas", schemaName], value, tableIds);
                             return perms;
@@ -175,19 +175,22 @@ export const getPermissionsGrid = createSelector(
                         },
                         "schemas": (perms, groupId, { databaseId }, value) => {
                             let database = _.findWhere(databases, { id: databaseId });
-                            let schemaNames = database && _.uniq(database.tables.map(table => table.schema));
+                            let schemaNames = database && _.uniq(database.tables.map(table => (table.schema || "")));
                             return updatePermission(perms, [groupId, databaseId, "schemas"], value, schemaNames);
                         }
                     },
                     entities: databases.map(database => {
-                        let schemas = _.uniq(database.tables.map(table => table.schema));
+                        let schemas = _.uniq(database.tables.map(table => (table.schema || "")));
                         return {
                             id: {
                                 databaseId: database.id
                             },
                             name: database.name,
                             link: schemas.length === 1 ?
-                                { name: "View tables", url: `/admin/permissions/databases/${database.id}/schemas/${schemas[0]}/tables`} :
+                                { name: "View tables", url: schemas[0] === "" ?
+                                    `/admin/permissions/databases/${database.id}/tables` :
+                                    `/admin/permissions/databases/${database.id}/schemas/${schemas[0]}/tables`
+                                } :
                                 { name: "View schemas", url: `/admin/permissions/databases/${database.id}/schemas`}
                         }
                     }),
