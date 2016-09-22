@@ -35,16 +35,8 @@ const FixedHeaderGrid = ({
                 {({ clientHeight, clientWidth, onScroll, scrollHeight, scrollLeft, scrollTop, scrollWidth }) =>
                     <div>
                         {/* CORNER */}
-                        <div style={{ position: "absolute", top: 0, left: 0, overflow: "hidden" }}>
-                            <Grid
-                                width={rowHeaderWidth}
-                                height={columnHeaderHeight}
-                                renderCell={renderCorner}
-                                columnsCount={1}
-                                rowsCount={1}
-                                columnWidth={rowHeaderWidth}
-                                rowHeight={columnHeaderHeight}
-                            />
+                        <div style={{ position: "absolute", top: 0, left: 0, width: rowHeaderWidth, height: columnHeaderHeight, overflow: "hidden" }}>
+                            {renderCorner()}
                         </div>
                         {/* COLUMN HEADERS */}
                         <div style={{ position: "absolute", top: 0, left: rowHeaderWidth, height: columnHeaderHeight, overflow: "hidden" }}>
