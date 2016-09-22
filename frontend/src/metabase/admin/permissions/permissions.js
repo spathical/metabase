@@ -1,11 +1,7 @@
 import { createAction, createThunkAction, handleActions, combineReducers, AngularResourceProxy } from "metabase/lib/redux";
 
-import _ from "underscore";
-
 const MetadataApi = new AngularResourceProxy("Metabase", ["db_list_with_tables"]);
 const PermissionsApi = new AngularResourceProxy("Permissions", ["groups", "graph", "updateGraph"]);
-
-import { getIn, setIn } from "icepick";
 
 const INITIALIZE = "metabase/admin/permissions/INITIALIZE";
 export const initialize = createThunkAction(INITIALIZE, () =>

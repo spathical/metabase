@@ -1,3 +1,5 @@
+/* eslint-disable react/display-name */
+
 import React, { Component, PropTypes } from "react";
 
 import { Link } from "react-router";
@@ -12,7 +14,6 @@ import { capitalize, pluralize } from "metabase/lib/formatting";
 import cx from "classnames";
 
 import S from "./PermissionsGrid.css";
-console.log("S", S)
 
 const CELL_HEIGHT = 176;
 const CELL_WIDTH = 246;

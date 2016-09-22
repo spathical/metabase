@@ -1,3 +1,5 @@
+/* eslint-disable react/display-name */
+
 import React, { Component, PropTypes } from "react";
 
 import { Grid, AutoSizer, ScrollSync } from 'react-virtualized'
@@ -5,8 +7,7 @@ import 'react-virtualized/styles.css'; // only needs to be imported once
 
 import cx from "classnames";
 
-// import scrollbarSize from 'dom-helpers/util/scrollbarSize'
-const scrollbarSize = () => 10;
+const SCROLLBAR_SIZE = 10;
 
 const FixedHeaderGrid = ({
     className,
@@ -47,7 +48,7 @@ const FixedHeaderGrid = ({
                         <div style={{ position: "absolute", top: 0, left: rowHeaderWidth, height: columnHeaderHeight, overflow: "hidden" }}>
                             <Grid
                                 width={width - rowHeaderWidth}
-                                height={columnHeaderHeight + scrollbarSize()}
+                                height={columnHeaderHeight + SCROLLBAR_SIZE}
                                 renderCell={(...args) =>
                                     // HACK: offsets the additional height needed to hide the scrollbars
                                     <div style={{ height: columnHeaderHeight, position: "relative" }}>{renderColumnHeader(...args)}</div>
@@ -55,14 +56,14 @@ const FixedHeaderGrid = ({
                                 columnsCount={columnsCount}
                                 rowsCount={1}
                                 columnWidth={columnWidth}
-                                rowHeight={columnHeaderHeight + scrollbarSize()}
+                                rowHeight={columnHeaderHeight + SCROLLBAR_SIZE}
                                 scrollLeft={scrollLeft}
                             />
                         </div>
                         {/* ROW HEADERS */}
                         <div style={{ position: "absolute", top: columnHeaderHeight, left: 0, width: rowHeaderWidth, overflow: "hidden" }}>
                             <Grid
-                                width={rowHeaderWidth + scrollbarSize()}
+                                width={rowHeaderWidth + SCROLLBAR_SIZE}
                                 height={height - columnHeaderHeight}
                                 renderCell={(...args) =>
                                     // HACK: offsets the additional width needed to hide the scrollbars
@@ -70,7 +71,7 @@ const FixedHeaderGrid = ({
                                 }
                                 columnsCount={1}
                                 rowsCount={rowsCount}
-                                columnWidth={rowHeaderWidth + scrollbarSize()}
+                                columnWidth={rowHeaderWidth + SCROLLBAR_SIZE}
                                 rowHeight={rowHeight}
                                 scrollTop={scrollTop}
                             />
