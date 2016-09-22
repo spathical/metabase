@@ -24,7 +24,9 @@ const FixedHeaderGrid = ({
     rowHeaderWidth,
     renderRowHeader,
 
-    renderCorner
+    renderCorner,
+
+    paddingBottom = 25
 }) =>
     <div className={cx(className, "relative")}>
         <AutoSizer>
@@ -49,9 +51,9 @@ const FixedHeaderGrid = ({
                             <Grid
                                 width={width - rowHeaderWidth}
                                 height={columnHeaderHeight + SCROLLBAR_SIZE}
-                                renderCell={(...args) =>
+                                renderCell={(props) =>
                                     // HACK: offsets the additional height needed to hide the scrollbars
-                                    <div style={{ height: columnHeaderHeight, position: "relative" }}>{renderColumnHeader(...args)}</div>
+                                    <div style={{ height: columnHeaderHeight, position: "relative" }}>{renderColumnHeader(props)}</div>
                                 }
                                 columnsCount={columnsCount}
                                 rowsCount={1}
@@ -65,14 +67,16 @@ const FixedHeaderGrid = ({
                             <Grid
                                 width={rowHeaderWidth + SCROLLBAR_SIZE}
                                 height={height - columnHeaderHeight}
-                                renderCell={(...args) =>
+                                renderCell={(props) =>
+                                    // HACK: pad the bottom with a phantom cell
+                                    props.rowIndex >= rowsCount ? <div /> :
                                     // HACK: offsets the additional width needed to hide the scrollbars
-                                    <div style={{ width: rowHeaderWidth, position: "relative" }}>{renderRowHeader(...args)}</div>
+                                    <div style={{ width: rowHeaderWidth, position: "relative" }}>{renderRowHeader(props)}</div>
                                 }
                                 columnsCount={1}
-                                rowsCount={rowsCount}
+                                rowsCount={rowsCount + 1}
                                 columnWidth={rowHeaderWidth + SCROLLBAR_SIZE}
-                                rowHeight={rowHeight}
+                                rowHeight={(index) => index >= rowsCount ? paddingBottom : rowHeight}
                                 scrollTop={scrollTop}
                             />
                         </div>
@@ -81,11 +85,15 @@ const FixedHeaderGrid = ({
                             <Grid
                                 width={width - rowHeaderWidth}
                                 height={height - columnHeaderHeight}
-                                renderCell={renderCell}
+                                renderCell={(props) =>
+                                    // HACK: pad the bottom with a phantom cell
+                                    props.rowIndex >= rowsCount ? <div /> :
+                                    renderCell(props)
+                                }
                                 columnsCount={columnsCount}
-                                rowsCount={rowsCount}
+                                rowsCount={rowsCount + 1}
                                 columnWidth={columnWidth}
-                                rowHeight={rowHeight}
+                                rowHeight={(index) => index >= rowsCount ? paddingBottom : rowHeight}
                                 onScroll={onScroll}
                             />
                         </div>
