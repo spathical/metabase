@@ -163,7 +163,7 @@
              (some (partial is-partial-permissions-for-object? path) permissions-set) :some
              :else                                                                    :none)))
 
-(defn- table->db-object-path     [table] (object-path (:db_id table)))
+
 (defn- table->native-path        [table] (native-path (:db_id table)))
 (defn- table->schema-object-path [table] (object-path (:db_id table) (:schema table)))
 (defn- table->table-object-path  [table] (object-path (:db_id table) (:schema table) (:id table)))
