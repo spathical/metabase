@@ -87,29 +87,29 @@
 
 (defn- fetch-tables [] (db/select ['Table :schema :id :db_id]))
 
-(s/defn ^:private schema-permissions-graph :- SchemaPermissionsGraph [permissions-set tables]
+(s/defn ^:private schema-graph :- SchemaPermissionsGraph [permissions-set tables]
   (case (permissions-for-path permissions-set (table->schema-object-path (first tables)))
     :all  :all
     :none :none
     :some (into {} (for [table tables]
                      {(:id table) (permissions-for-path permissions-set (table->table-object-path table))}))))
 
-(s/defn ^:private db-permissions-graph :- DBPermissionsGraph [permissions-set tables]
+(s/defn ^:private db-graph :- DBPermissionsGraph [permissions-set tables]
   {:native  (case (permissions-for-path permissions-set (table->native-path (first tables)))
               :all  :write
               :none :read)
    :schemas (case (permissions-for-path permissions-set (table->all-schemas-path (first tables)))
               :all  :all
               :none :none
-              (m/map-vals (partial schema-permissions-graph permissions-set)
+              (m/map-vals (partial schema-graph permissions-set)
                           (group-by :schema tables)))})
 
-(s/defn ^:private group-permissions-graph :- GroupPermissionsGraph [permissions-set tables]
-  (m/map-vals (partial db-permissions-graph permissions-set)
+(s/defn ^:private group-graph :- GroupPermissionsGraph [permissions-set tables]
+  (m/map-vals (partial db-graph permissions-set)
               tables))
 
 ;; TODO - if a DB has no tables, then it won't show up in the permissions graph!
-(s/defn ^:private ^:always-validate permissions-graph :- PermissionsGraph []
+(s/defn ^:private ^:always-validate graph :- PermissionsGraph []
   (let [permissions (db/select [Permissions :group_id :object])
         tables      (group-by :db_id (fetch-tables))]
     {:revision 1
@@ -117,13 +117,13 @@
                           (let [group-permissions-set (set (for [perms permissions
                                                                  :when (= (:group_id perms) group-id)]
                                                              (:object perms)))]
-                            {group-id (group-permissions-graph group-permissions-set tables)})))}))
+                            {group-id (group-graph group-permissions-set tables)})))}))
 
 (defendpoint GET "/graph"
   "Fetch a graph of all Permissions."
   []
   (check-superuser)
-  (permissions-graph))
+  (graph))
 
 
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -145,14 +145,23 @@
                     [:like :object (str path "%")]]
                    other-conditions)}))
 
+(defn- grant-permissions!
+  ([group-id db-id schema & more]
+   (grant-permissions! apply object-path db-id schema more))
+  ([group-id path]
+   (try
+     (db/insert! Permissions
+       :group_id group-id
+       :object   path)
+     ;; on some occasions through weirdness we might accidentally try to insert a key that's already been inserted
+     (catch Throwable e
+       (log/error (u/format-color 'red "Failed to grant permissions for group %d to '%s': %s" group-id path (.getMessage e)))))))
+
 (defn- revoke-native-permissions! [group-id database-id]
   (delete-related-permissions! group-id (native-path database-id)))
 
-(defn- grant-native-permissions!
-  [group-id database-id]
-  (db/insert! Permissions
-    :group_id group-id
-    :object   (native-path database-id)))
+(defn- grant-native-permissions! [group-id database-id]
+  (grant-permissions! group-id (native-path database-id)))
 
 (defn- revoke-db-permissions!
   "Remove all permissions entires for a DB and any child objects.
@@ -165,14 +174,7 @@
   "Grant full permissions for all schemas belonging to this database.
    This does *not* grant native permissions; use `grant-native-permissions!` to do that."
   [group-id database-id]
-  (db/insert! Permissions
-    :group_id group-id
-    :object   (all-schemas-path database-id)))
-
-(defn- grant-permissions! [group-id & path-components]
-  (db/insert! Permissions
-    :group_id group-id
-    :object   (apply object-path path-components)))
+  (grant-permissions! group-id (all-schemas-path database-id)))
 
 (defn- revoke-permissions! [group-id & path-components]
   (delete-related-permissions! group-id (apply object-path path-components)))
@@ -212,14 +214,26 @@
   (doseq [db-id (keys new-group-perms)]
     (update-db-permissions! group-id db-id (get new-group-perms db-id))))
 
-(s/defn ^:private ^:always-validate update-permissions-graph! [new-graph :- PermissionsGraph]
-  (let [old-graph (permissions-graph)
+(defn- check-revision-numbers
+  "Check that the revision number coming in as part of NEW-GRAPH matches the one from OLD-GRAPH.
+   This way we can make sure people don't submit a new graph based on something out of date,
+   which would otherwise stomp over changes made in the interim.
+   Return a 409 (Conflict) if the numbers don't match up."
+  [old-graph new-graph]
+  (when (not= (:revision old-graph) (:revision new-graph))
+    (throw (ex-info "Looks like someone else edited the permissions and your data is out of date. Please fetch new data and try again."
+             {:status-code 409}))))
+
+(s/defn ^:private ^:always-validate update-graph!
+  "Update the permissions graph, making any changes neccesary to make it match NEW-GRAPH. "
+  [new-graph :- PermissionsGraph]
+  (let [old-graph (graph)
         [old new] (data/diff (:groups old-graph) (:groups new-graph))]
     (when (or (seq old) (seq new))
       (log/info (format "Updating permissions! 🔏\nOLD:\n%s\nNEW:\n%s"
                         (u/pprint-to-str 'magenta old)
                         (u/pprint-to-str 'blue new))))
-    ;; TODO - Need to check the revision number for the new graph is the same as the one from old-graph. Otherwise people are editing old data
+    (check-revision-numbers old-graph new-graph)
     ;; TODO - Need to save this graph diff somewhere for logging / audit purposes
     (doseq [group-id (keys new)]
       (update-group-permissions! group-id (get new group-id)))))
@@ -259,13 +273,19 @@
 ;;; ---------------------------------------- Endpoint ----------------------------------------
 
 (defendpoint PUT "/graph"
-  "Do a batch update of Permissions by passing in a modified graph."
+  "Do a batch update of Permissions by passing in a modified graph. This should return the same graph,
+   in the same format, that you got from `GET /api/permissions/graph`, with any changes made in the wherever neccesary.
+   This modified graph must correspond to the `PermissionsGraph` schema.
+   If successful, this endpoint returns the updated permissions graph; use this as a base for any further modifications.
+
+   Revisions to the permissions graph are tracked. If you fetch the permissions graph and some other third-party modifies it before you can submit
+   you revisions, the endpoint will instead make no changes andr eturn a 409 (Conflict) response. In this case, you should fetch the updated graph
+   and make desired changes to that."
   [:as {body :body}]
   {body [Required Dict]}
   (check-superuser)
-  (update-permissions-graph! (dejsonify-graph body))
-  ;; return the updated graph
-  (permissions-graph))
+  (update-graph! (dejsonify-graph body))
+  (graph))
 
 
 
