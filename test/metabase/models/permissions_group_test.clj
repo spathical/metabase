@@ -1,15 +1,15 @@
 (ns metabase.models.permissions-group-test
   (:require [expectations :refer :all]
             [metabase.db :as db]
-            [metabase.api.permissions :as perms-api]
             (metabase.models [database :refer [Database]]
-                             [permissions :as perms]
+                             [permissions :refer [Permissions], :as perms]
                              [permissions-group :refer [PermissionsGroup], :as perm-group]
                              [permissions-group-membership :refer [PermissionsGroupMembership]]
                              [table :refer [Table]]
                              [user :refer [User]])
             [metabase.test.data.users :as test-users]
-            [metabase.test.util :as tu])
+            [metabase.test.util :as tu]
+            [metabase.util.honeysql-extensions :as hx])
   (:import metabase.models.permissions_group.PermissionsGroupInstance))
 
 ;;; ---------------------------------------- check that we can get the magic permissions groups through the helper functions ----------------------------------------
@@ -62,15 +62,22 @@
 
 ;;; ---------------------------------------- magic groups should have permissions for newly created databases ----------------------------------------
 
-;; TODO - since these functions are "deprecated" consider some other way to write these tests
+(defn- group-has-full-access?
+  "Does a group have permissions for OBJECT and *all* of its children?"
+  ^Boolean [^Integer group-id, ^String object]
+  {:pre [(perms/valid-object-path? object)]}
+  ;; e.g. WHERE (object || '%') LIKE '/db/1000/'
+  (db/exists? Permissions
+    :group_id group-id
+    object    [:like (hx/concat :object (hx/literal "%"))]))
 
 (expect
   (tu/with-temp Database [{database-id :id}]
-    (perms-api/group-has-full-access? (:id (perm-group/default)) (perms/object-path database-id))))
+    (group-has-full-access? (:id (perm-group/default)) (perms/object-path database-id))))
 
 (expect
   (tu/with-temp Database [{database-id :id}]
-    (perms-api/group-has-full-access? (:id (perm-group/admin)) (perms/object-path database-id))))
+    (group-has-full-access? (:id (perm-group/admin)) (perms/object-path database-id))))
 
 
 
