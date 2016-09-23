@@ -33,10 +33,10 @@ const PermissionsConfirm = ({ diff }) =>
                     { (database.grantedTables || database.revokedTables) &&
                         <div>
                             <GroupName group={group} />
-                            {" "}
-                            {database.grantedTables && <TableAccessChange verb="will be given access to" color="text-success" tables={database.grantedTables} /> }
+                            {" will be "}
+                            {database.grantedTables && <TableAccessChange verb="given access to" color="text-success" tables={database.grantedTables} /> }
                             {database.grantedTables && database.revokedTables && " and "}
-                            {database.revokedTables && <TableAccessChange verb="will be denied access to" color="text-warning" tables={database.revokedTables} /> }
+                            {database.revokedTables && <TableAccessChange verb="denied access to" color="text-warning" tables={database.revokedTables} /> }
                             {" in "}
                             <DatabaseName database={database} />
                             {"."}

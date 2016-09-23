@@ -38,7 +38,7 @@ export default class Confirm extends Component {
 
                     <div className="Form-actions">
                         <button className="Button Button--danger" onClick={onAction}>Yes</button>
-                        <button className="Button Button--primary ml1" onClick={onClose}>No</button>
+                        <button className="Button ml1" onClick={onClose}>No</button>
                     </div>
                 </ModalContent>
             </ModalWithTrigger>
