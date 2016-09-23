@@ -158,55 +158,71 @@ const GroupPermissionRow = ({ group, permissions, entity, data, onUpdatePermissi
         )}
     </div>
 
-const GroupPermissionCell = ({ permission, value, onUpdatePermission, isEditable }) => {
-    const option = permission.options[value];
-    if (!option) {
-        console.warn("Unknown value for permission", value, permission);
-        return null;
-    }
+class GroupPermissionCell extends Component {
+    render() {
+        const { permission, value, onUpdatePermission, isEditable } = this.props;
+        const option = permission.options[value];
+        if (!option) {
+            console.warn("Unknown value for permission", value, permission);
+            return null;
+        }
 
-    return (
-        <div className="flex-full flex layout-centered border-column-divider" style={{
-            borderColor: LIGHT_BORDER,
-            height: CELL_HEIGHT - 1,
-            backgroundColor: permission.options[value].bgColor
-        }}>
-            <PopoverWithTrigger
-                disabled={!isEditable}
-                className="flex-full"
-                triggerElement={
-                    <Tooltip tooltip={option.title}>
-                        <div
-                            className={cx(S.cellButton, { [S.cellButton__editable]: isEditable })}
-                            style={{ backgroundColor: permission.options[value].bgColor }}
-                        >
-                            <Icon
-                                name={permission.options[value].icon}
-                                width={28}
-                                height={28}
-                                style={{ color: permission.options[value].iconColor }}
-                            />
-                        </div>
-                    </Tooltip>
-               }
-            >
-                <AccessOptionList permission={permission} onUpdatePermission={onUpdatePermission} />
-            </PopoverWithTrigger>
-        </div>
-    );
+        return (
+            <div className="flex-full flex layout-centered border-column-divider" style={{
+                borderColor: LIGHT_BORDER,
+                height: CELL_HEIGHT - 1,
+                backgroundColor: permission.options[value].bgColor
+            }}>
+                <PopoverWithTrigger
+                    ref="popover"
+                    disabled={!isEditable}
+                    className="flex-full"
+                    triggerElement={
+                        <Tooltip tooltip={option.title}>
+                            <div
+                                className={cx(S.cellButton, { [S.cellButton__editable]: isEditable })}
+                                style={{ backgroundColor: permission.options[value].bgColor }}
+                            >
+                                <Icon
+                                    name={permission.options[value].icon}
+                                    width={28}
+                                    height={28}
+                                    style={{ color: permission.options[value].iconColor }}
+                                />
+                            </div>
+                        </Tooltip>
+                   }
+                >
+                    <AccessOptionList
+                        value={value}
+                        permission={permission}
+                        onUpdatePermission={(...args) => {
+                            onUpdatePermission(...args);
+                            this.refs.popover.close();
+                        }}
+                    />
+                </PopoverWithTrigger>
+            </div>
+        );
+    }
 }
 
-const AccessOption = ({ option, onUpdatePermission }) =>
-    <div className="flex py2 px2 align-center" onClick={() => onUpdatePermission(option.value)}>
-        <Icon name={option.icon} className={cx('mr1', option.iconColor )} />
+const AccessOption = ({ value, option, onUpdatePermission }) =>
+    <div
+        className={cx("flex py2 px2 align-center bg-brand-hover text-white-hover", {
+            "bg-brand text-white": value === option.value
+        })}
+        onClick={() => onUpdatePermission(option.value)}
+    >
+        <Icon name={option.icon} className="mr1" style={{ color: option.iconColor }} size={18} />
         {option.title}
     </div>
 
-const AccessOptionList = ({ permission, onUpdatePermission }) =>
-    <ul className="py2">
+const AccessOptionList = ({ value, permission, onUpdatePermission }) =>
+    <ul className="py1">
         { Object.values(permission.options).map(option =>
             <li key={option.value}>
-                <AccessOption option={option} onUpdatePermission={onUpdatePermission} />
+                <AccessOption value={value} option={option} onUpdatePermission={onUpdatePermission} />
             </li>
         )}
     </ul>
