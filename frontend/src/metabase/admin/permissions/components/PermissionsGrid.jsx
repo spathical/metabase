@@ -38,7 +38,7 @@ const HEADER_WIDTH = 170;
 
 const PERMISSION_TYPES = {
     "native": {
-        header: "Raw Access",
+        header: "Raw Queries",
         options: {
             "write": {
                 title: "Write raw queries",
@@ -55,16 +55,16 @@ const PERMISSION_TYPES = {
         }
     },
     "schemas": {
-        header: "Schema Access",
+        header: "Data Access",
         options: {
             "all": {
-                title: "Access all schemas",
+                title: "Unrestricted Access",
                 icon: "check",
                 iconColor: "#9CC177",
                 bgColor: "#F6F9F2"
             },
             "controlled": {
-                title: "Access some schemas",
+                title: "Limited Access",
                 icon: "ellipsis",
                 iconColor: "#F9D45C",
                 bgColor: "#FEFAEE"
@@ -78,16 +78,16 @@ const PERMISSION_TYPES = {
         }
     },
     "tables": {
-        header: "Table Access",
+        header: "Data Access",
         options: {
             "all": {
-                title: "Access all tables",
+                title: "Unrestricted Access",
                 icon: "check",
                 iconColor: "#9CC177",
                 bgColor: "#F6F9F2"
             },
             "controlled": {
-                title: "Access some tables",
+                title: "Limited Access",
                 icon: "ellipsis",
                 iconColor: "#F9D45C",
                 bgColor: "#FEFAEE"
@@ -101,10 +101,10 @@ const PERMISSION_TYPES = {
         }
     },
     "fields": {
-        header: "Table Access",
+        header: "Data Access",
         options: {
             "all": {
-                title: "Access table",
+                title: "Unrestricted Access",
                 icon: "check",
                 iconColor: "#9CC177",
                 bgColor: "#F6F9F2"
