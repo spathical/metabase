@@ -65,13 +65,13 @@ const OPTIONS_UI = {
         bgColor: "#FEFAEE"
     },
     "all": {
-        title: "Unrestricted Access",
+        title: "Unrestricted access",
         icon: "check",
         iconColor: "#9CC177",
         bgColor: "#F6F9F2"
     },
     "controlled": {
-        title: "Limited Access",
+        title: "Limited access",
         icon: "tilde",
         iconColor: "#F9D45C",
         bgColor: "#FEFAEE"
