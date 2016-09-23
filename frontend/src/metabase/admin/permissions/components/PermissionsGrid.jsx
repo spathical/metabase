@@ -36,94 +36,61 @@ const CELL_WIDTH = 246;
 const HEADER_HEIGHT = 100;
 const HEADER_WIDTH = 170;
 
-const PERMISSION_TYPES = {
+const PERMISSIONS_UI = {
     "native": {
-        header: "Raw Queries",
-        options: {
-            "write": {
-                title: "Write raw queries",
-                icon: "sql",
-                iconColor: "#9CC177",
-                bgColor: "#F6F9F2"
-            },
-            "read": { // FIXME: read
-                title: "View raw queries",
-                icon: "ellipsis",
-                iconColor: "#F9D45C",
-                bgColor: "#FEFAEE"
-            }
-        }
+        header: "Raw Queries"
     },
     "schemas": {
-        header: "Data Access",
-        options: {
-            "all": {
-                title: "Unrestricted Access",
-                icon: "check",
-                iconColor: "#9CC177",
-                bgColor: "#F6F9F2"
-            },
-            "controlled": {
-                title: "Limited Access",
-                icon: "ellipsis",
-                iconColor: "#F9D45C",
-                bgColor: "#FEFAEE"
-            },
-            "none": {
-                title: "No access",
-                icon: "close",
-                iconColor: "#EEA5A5",
-                bgColor: "#FDF3F3"
-            }
-        }
+        header: "Data Access"
     },
     "tables": {
-        header: "Data Access",
-        options: {
-            "all": {
-                title: "Unrestricted Access",
-                icon: "check",
-                iconColor: "#9CC177",
-                bgColor: "#F6F9F2"
-            },
-            "controlled": {
-                title: "Limited Access",
-                icon: "ellipsis",
-                iconColor: "#F9D45C",
-                bgColor: "#FEFAEE"
-            },
-            "none": {
-                title: "No access",
-                icon: "close",
-                iconColor: "#EEA5A5",
-                bgColor: "#FDF3F3"
-            }
-        }
+        header: "Data Access"
     },
     "fields": {
         header: "Data Access",
-        options: {
-            "all": {
-                title: "Unrestricted Access",
-                icon: "check",
-                iconColor: "#9CC177",
-                bgColor: "#F6F9F2"
-            },
-            "none": {
-                title: "No access",
-                icon: "close",
-                iconColor: "#EEA5A5",
-                bgColor: "#FDF3F3"
-            }
-        }
+    }
+};
+
+const OPTIONS_UI = {
+    "write": {
+        title: "Write raw queries",
+        icon: "sql",
+        iconColor: "#9CC177",
+        bgColor: "#F6F9F2"
+    },
+    "read": {
+        title: "View raw queries",
+        icon: "ellipsis",
+        iconColor: "#F9D45C",
+        bgColor: "#FEFAEE"
+    },
+    "all": {
+        title: "Unrestricted Access",
+        icon: "check",
+        iconColor: "#9CC177",
+        bgColor: "#F6F9F2"
+    },
+    "controlled": {
+        title: "Limited Access",
+        icon: "tilde",
+        iconColor: "#F9D45C",
+        bgColor: "#FEFAEE"
+    },
+    "none": {
+        title: "No access",
+        icon: "close",
+        iconColor: "#EEA5A5",
+        bgColor: "#FDF3F3"
+    },
+    "unknown": {
+        icon: "unknown",
+        iconColor: "#9BA5B1",
+        bgColor: "#DFE8EA"
     }
 }
-for (const id in PERMISSION_TYPES) {
-    PERMISSION_TYPES[id].id = id;
-    for (const value in PERMISSION_TYPES[id].options) {
-        PERMISSION_TYPES[id].options[value].value = value;
-    }
-}
+
+const getOptionUi = (option) =>
+    OPTIONS_UI[option] || { ...OPTIONS_UI.unknown, title: option };
 
 const GroupPermissionHeader = ({ group, permissions, isLastColumn, isFirstColumn }) =>
     <div className="absolute bottom left right">
@@ -152,6 +119,7 @@ const GroupPermissionRow = ({ group, permissions, entity, data, onUpdatePermissi
                         entityId: entity.id,
                         value: value,
                         updater: permission.updater,
+                        postAction: permission.postAction
                     })}
                 isEditable={group.editable}
             />
@@ -161,33 +129,27 @@ const GroupPermissionRow = ({ group, permissions, entity, data, onUpdatePermissi
 class GroupPermissionCell extends Component {
     render() {
         const { permission, value, onUpdatePermission, isEditable } = this.props;
-        const option = permission.options[value];
-        if (!option) {
-            console.warn("Unknown value for permission", value, permission);
-            return null;
-        }
-
         return (
             <div className="flex-full flex layout-centered border-column-divider" style={{
                 borderColor: LIGHT_BORDER,
                 height: CELL_HEIGHT - 1,
-                backgroundColor: permission.options[value].bgColor
+                backgroundColor: getOptionUi(value).bgColor
             }}>
                 <PopoverWithTrigger
                     ref="popover"
                     disabled={!isEditable}
                     className="flex-full"
                     triggerElement={
-                        <Tooltip tooltip={option.title}>
+                        <Tooltip tooltip={getOptionUi(value).title}>
                             <div
                                 className={cx(S.cellButton, { [S.cellButton__editable]: isEditable })}
-                                style={{ backgroundColor: permission.options[value].bgColor }}
+                                style={{ backgroundColor: getOptionUi(value).bgColor }}
                             >
                                 <Icon
-                                    name={permission.options[value].icon}
+                                    name={getOptionUi(value).icon}
                                     width={28}
                                     height={28}
-                                    style={{ color: permission.options[value].iconColor }}
+                                    style={{ color: getOptionUi(value).iconColor }}
                                 />
                             </div>
                         </Tooltip>
@@ -210,18 +172,18 @@ class GroupPermissionCell extends Component {
 const AccessOption = ({ value, option, onUpdatePermission }) =>
     <div
         className={cx("flex py2 px2 align-center bg-brand-hover text-white-hover", {
-            "bg-brand text-white": value === option.value
+            "bg-brand text-white": value === option
         })}
-        onClick={() => onUpdatePermission(option.value)}
+        onClick={() => onUpdatePermission(option)}
     >
-        <Icon name={option.icon} className="mr1" style={{ color: option.iconColor }} size={18} />
-        {option.title}
+        <Icon name={getOptionUi(option).icon} className="mr1" style={{ color: getOptionUi(option).iconColor }} size={18} />
+        {getOptionUi(option).title}
     </div>
 
 const AccessOptionList = ({ value, permission, onUpdatePermission }) =>
     <ul className="py1">
-        { Object.values(permission.options).map(option =>
-            <li key={option.value}>
+        { permission.options.map(option =>
+            <li key={option}>
                 <AccessOption value={value} option={option} onUpdatePermission={onUpdatePermission} />
             </li>
         )}
@@ -252,8 +214,8 @@ const CornerHeader = ({ grid }) =>
     </div>
 
 const PermissionsGrid = ({ className, grid, onUpdatePermission }) => {
-    const permissions = Object.keys(grid.permissions).map(permission =>
-        ({ ...PERMISSION_TYPES[permission], updater: grid.permissions[permission] })
+    const permissions = Object.entries(grid.permissions).map(([id, permission]) =>
+        ({ id: id, ...PERMISSIONS_UI[id], ...permission })
     );
     return (
         <FixedHeaderGrid

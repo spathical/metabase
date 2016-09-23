@@ -1,6 +1,8 @@
 
 import { createSelector } from 'reselect';
 
+import { push } from "react-router-redux";
+
 import _ from "underscore";
 import { getIn, setIn } from "icepick";
 
@@ -78,10 +80,10 @@ const getTablePermissions = (permissions, dbId, schemaName, tableId) => {
 }
 
 
-function updatePermission(permissions, path, value, entityIds) {
-    let current = getIn(permissions, path);
+function updatePermission(perms, path, value, entityIds) {
+    let current = getIn(perms, path);
     if (current === value || (current && typeof current === "object" && value === "controlled")) {
-        return permissions;
+        return perms;
     }
     if (value === "controlled") {
         value = {};
@@ -92,11 +94,11 @@ function updatePermission(permissions, path, value, entityIds) {
         }
     }
     for (var i = 0; i < path.length; i++) {
-        if (typeof getIn(permissions, path.slice(0, i)) === "string") {
-            permissions = setIn(permissions, path.slice(0, i), {});
+        if (typeof getIn(perms, path.slice(0, i)) === "string") {
+            perms = setIn(perms, path.slice(0, i), {});
         }
     }
-    return setIn(permissions, path, value);
+    return setIn(perms, path, value);
 }
 
 export const getPermissionsGrid = createSelector(
@@ -116,11 +118,14 @@ export const getPermissionsGrid = createSelector(
                     type: "table",
                     groups,
                     permissions: {
-                        "fields": (perms, groupId, { databaseId, schemaName, tableId }, value) => {
-                            perms = updatePermission(perms, [groupId, databaseId, "schemas"], "controlled", schemaNames);
-                            perms = updatePermission(perms, [groupId, databaseId, "schemas", schemaName], "controlled", tableIds);
-                            perms = updatePermission(perms, [groupId, databaseId, "schemas", schemaName, tableId], value /* TODO: field ids, when enabled "controlled" fields */);
-                            return perms;
+                        "fields": {
+                            options: ["all", "none"],
+                            updater: (perms, groupId, { databaseId, schemaName, tableId }, value) => {
+                                perms = updatePermission(perms, [groupId, databaseId, "schemas"], "controlled", schemaNames);
+                                perms = updatePermission(perms, [groupId, databaseId, "schemas", schemaName], "controlled", tableIds);
+                                perms = updatePermission(perms, [groupId, databaseId, "schemas", schemaName, tableId], value /* TODO: field ids, when enabled "controlled" fields */);
+                                return perms;
+                            }
                         }
                     },
                     entities: tables.map(table => ({
@@ -144,11 +149,19 @@ export const getPermissionsGrid = createSelector(
                     type: "schema",
                     groups,
                     permissions: {
-                        "tables": (perms, groupId, { databaseId, schemaName }, value) => {
-                            let tableIds = database.tables.filter(table => (table.schema || "") === schemaName).map(table => table.id);
-                            perms = updatePermission(perms, [groupId, databaseId, "schemas"], "controlled", schemaNames);
-                            perms = updatePermission(perms, [groupId, databaseId, "schemas", schemaName], value, tableIds);
-                            return perms;
+                        "tables": {
+                            options: ["all", "controlled", "none"],
+                            updater: (perms, groupId, { databaseId, schemaName }, value) => {
+                                let tableIds = database.tables.filter(table => (table.schema || "") === schemaName).map(table => table.id);
+                                perms = updatePermission(perms, [groupId, databaseId, "schemas"], "controlled", schemaNames);
+                                perms = updatePermission(perms, [groupId, databaseId, "schemas", schemaName], value, tableIds);
+                                return perms;
+                            },
+                            postAction: (groupId, { databaseId, schemaName }, value) => {
+                                if (value === "controlled") {
+                                    return push(`/admin/permissions/databases/${databaseId}/schemas/${encodeURIComponent(schemaName)}/tables`);
+                                }
+                            }
                         }
                     },
                     entities: schemaNames.map(schemaName => ({
@@ -170,13 +183,24 @@ export const getPermissionsGrid = createSelector(
                     type: "database",
                     groups,
                     permissions: {
-                        "native": (perms, groupId, { databaseId }, value) => {
-                            return updatePermission(perms, [groupId, databaseId, "native"], value);
+                        "native": {
+                            options: ["write", "read"],
+                            updater: (perms, groupId, { databaseId }, value) => {
+                                return updatePermission(perms, [groupId, databaseId, "native"], value);
+                            },
                         },
-                        "schemas": (perms, groupId, { databaseId }, value) => {
-                            let database = _.findWhere(databases, { id: databaseId });
-                            let schemaNames = database && _.uniq(database.tables.map(table => (table.schema || "")));
-                            return updatePermission(perms, [groupId, databaseId, "schemas"], value, schemaNames);
+                        "schemas": {
+                            options: ["all", "controlled", "none"],
+                            updater: (perms, groupId, { databaseId }, value) => {
+                                let database = _.findWhere(databases, { id: databaseId });
+                                let schemaNames = database && _.uniq(database.tables.map(table => (table.schema || "")));
+                                return updatePermission(perms, [groupId, databaseId, "schemas"], value, schemaNames);
+                            },
+                            postAction: (groupId, { databaseId }, value) => {
+                                if (value === "controlled") {
+                                    return push(`/admin/permissions/databases/${databaseId}/schemas`);
+                                }
+                            }
                         }
                     },
                     entities: databases.map(database => {

@@ -24,7 +24,17 @@ const LOAD_METADATA = "metabase/admin/permissions/LOAD_METADATA";
 export const loadMetadata = createAction(LOAD_METADATA, () => MetadataApi.db_list_with_tables());
 
 const UPDATE_PERMISSION = "metabase/admin/permissions/UPDATE_PERMISSION";
-export const updatePermission = createAction(UPDATE_PERMISSION);
+export const updatePermission = createThunkAction(UPDATE_PERMISSION, ({ groupId, entityId, value, updater, postAction }) =>
+    async (dispatch, getState) => {
+        if (postAction) {
+            let action = postAction(groupId, entityId, value);
+            if (action) {
+                dispatch(action);
+            }
+        }
+        return updater(getState().permissions.permissions, groupId, entityId, value);
+    }
+);
 
 const SAVE_PERMISSIONS = "metabase/admin/permissions/SAVE_PERMISSIONS";
 export const savePermissions = createThunkAction(SAVE_PERMISSIONS, () =>
@@ -42,9 +52,7 @@ export const savePermissions = createThunkAction(SAVE_PERMISSIONS, () =>
 const permissions = handleActions({
     [LOAD_PERMISSIONS]: { next: (state, { payload }) => payload.groups },
     [SAVE_PERMISSIONS]: { next: (state, { payload }) => payload.groups },
-    [UPDATE_PERMISSION]: { next: (state, { payload: { groupId, entityId, value, updater } }) => {
-        return updater(state, groupId, entityId, value);
-    }}
+    [UPDATE_PERMISSION]: { next: (state, { payload }) => payload }
 }, null);
 
 const originalPermissions = handleActions({
