@@ -40,7 +40,7 @@ const getDatabasePermissions = (permissions, dbId) => {
 const getSchemaPermissions = (permissions, dbId, schemaName) => {
     let { schemas } = getDatabasePermissions(permissions, dbId);
     if (schemas === "controlled") {
-        let tables = getIn(permissions, [dbId, "schemas", schemaName]);
+        let tables = getIn(permissions, [dbId, "schemas", schemaName || ""]);
         if (tables) {
             return {
                 tables: getAccess(tables)
@@ -60,7 +60,7 @@ const getSchemaPermissions = (permissions, dbId, schemaName) => {
 const getTablePermissions = (permissions, dbId, schemaName, tableId) => {
     let { tables } = getSchemaPermissions(permissions, dbId, schemaName);
     if (tables === "controlled") {
-        let fields = getIn(permissions, [dbId, "schemas", schemaName, tableId]);
+        let fields = getIn(permissions, [dbId, "schemas", schemaName || "", tableId]);
         if (fields) {
             return {
                 fields: getAccess(fields)
@@ -206,3 +206,86 @@ export const getPermissionsGrid = createSelector(
         return null;
     }
 );
+
+function deleteIfEmpty(object, key) {
+    if (Object.keys(object[key]).length === 0) {
+        delete object[key];
+    }
+}
+
+/*
+
+permissionsDiff = {
+    groups: {
+        GROUP_ID: {
+            name:
+            databases: {
+
+            }
+        }
+    }
+}
+
+*/
+
+function diffDatabasePermissions(database, newGroupPermissions, oldGroupPermissions) {
+    const databaseDiff = { grantedTables: {}, revokedTables: {} };
+    // get the native permisisons for this db
+    const oldDbPerm = getDatabasePermissions(oldGroupPermissions, database.id);
+    const newDbPerm = getDatabasePermissions(newGroupPermissions, database.id);
+    if (oldDbPerm.native !== newDbPerm.native) {
+        databaseDiff.native = newDbPerm.native;
+    }
+    // check each table in this db
+    for (const table of database.tables) {
+        const oldTablePerm = getTablePermissions(oldGroupPermissions, database.id, table.schema, table.id);
+        const newTablePerm = getTablePermissions(newGroupPermissions, database.id, table.schema, table.id);
+        if (oldTablePerm.fields !== newTablePerm.fields) {
+            if (newTablePerm.fields === "none") {
+                databaseDiff.revokedTables[table.id] = { name: table.display_name };
+            } else {
+                databaseDiff.grantedTables[table.id] = { name: table.display_name };
+            }
+        }
+    }
+    // remove types that have no tables
+    for (let type of ["grantedTables", "revokedTables"]) {
+        deleteIfEmpty(databaseDiff, type);
+    }
+    return databaseDiff;
+}
+
+function diffGroupPermissions(databases, newGroupPermissions, oldGroupPermissions) {
+    let groupDiff = { databases: {} };
+    for (const database of databases) {
+        groupDiff.databases[database.id] = diffDatabasePermissions(database, newGroupPermissions, oldGroupPermissions);
+        deleteIfEmpty(groupDiff.databases, database.id);
+        if (groupDiff.databases[database.id]) {
+            groupDiff.databases[database.id].name = database.name;
+        }
+    }
+    deleteIfEmpty(groupDiff, "databases");
+    return groupDiff;
+}
+
+function diffPermissions(groups, databases, newPermissions, oldPermissions) {
+    let permissionsDiff = { groups: {} };
+    if (databases && newPermissions && oldPermissions) {
+        for (let group of groups) {
+            permissionsDiff.groups[group.id] = diffGroupPermissions(databases, newPermissions[group.id], oldPermissions[group.id]);
+            deleteIfEmpty(permissionsDiff.groups, group.id);
+            if (permissionsDiff.groups[group.id]) {
+                permissionsDiff.groups[group.id].name = group.name;
+            }
+        }
+    }
+    return permissionsDiff;
+}
+
+export const getDiff = createSelector(
+    getGroups,
+    getDatabases,
+    getPermissions,
+    getOriginalPermissions,
+    diffPermissions
+)

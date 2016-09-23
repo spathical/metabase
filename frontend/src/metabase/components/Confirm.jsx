@@ -9,6 +9,7 @@ export default class Confirm extends Component {
         action: PropTypes.func.isRequired,
         title: PropTypes.string.isRequired,
         children: PropTypes.any,
+        content: PropTypes.any,
     };
 
     render() {
@@ -29,6 +30,8 @@ export default class Confirm extends Component {
                     title={title}
                     closeFn={onClose}
                 >
+                    {this.props.content}
+
                     <div className="Form-inputs mb4">
                         <p>Are you sure you want to do this?</p>
                     </div>
