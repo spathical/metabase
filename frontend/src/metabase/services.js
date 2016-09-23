@@ -604,33 +604,11 @@ CoreServices.factory('Permissions', ['$resource', function($resource) {
         },
         graph: {
             method: 'GET',
-            url: '/api/permissions/graph',
+            url: '/api/permissions/graph'
         },
         updateGraph: {
             method: 'PUT',
-            url: '/api/permissions/graph',
-        },
-        groupDetails: {
-            method: 'GET',
-            url: '/api/permissions/group/:id',
-            params: {
-                id: '@id'
-            }
-        },
-        databaseDetails: {
-            method: 'GET',
-            url: '/api/permissions/database/:id',
-            params: {
-                id: '@id'
-            }
-        },
-        databasePermissions: {
-            method: 'GET',
-            url: '/api/permissions/group/:groupID/database/:databaseID',
-            params: {
-                databaseID: '@databaseID',
-                groupID: '@groupID'
-            }
+            url: '/api/permissions/graph'
         },
         createGroup: {
             method: 'POST',
@@ -648,14 +626,6 @@ CoreServices.factory('Permissions', ['$resource', function($resource) {
                 id: '@id'
             }
         },
-        updateDatabasePermissions: {
-            method: 'POST',
-            url: '/api/permissions/group/:groupID/database/:databaseID',
-            params: {
-                databaseID: '@databaseID',
-                groupID: '@groupID'
-            }
-        },
         updateGroup: {
             method: 'PUT',
             url: '/api/permissions/group/:id',
@@ -668,57 +638,6 @@ CoreServices.factory('Permissions', ['$resource', function($resource) {
             url: '/api/permissions/group/:id',
             params: {
                 id: '@id'
-            }
-        },
-        schemaPermissions: {
-            method: 'GET',
-            url: '/api/permissions/group/:groupID/database/:databaseID/schema/:schema',
-            params: {
-                databaseID: '@databaseID',
-                groupID: '@groupID',
-                schema: '@schema'
-            }
-        },
-        createSchemaPermissions: {
-            method: 'POST',
-            url: '/api/permissions/group/:groupID/database/:databaseID/schema',
-            params: {
-                databaseID: '@databaseID',
-                groupID: '@groupID'
-            }
-        },
-        deleteSchemaPermissions: {
-            method: 'DELETE',
-            url: '/api/permissions/group/:groupID/database/:databaseID/schema/:schema',
-            params: {
-                databaseID: '@databaseID',
-                groupID: '@groupID',
-                schema: '@schema'
-            }
-        },
-        updateSchemaPermissions: {
-            method: 'PUT',
-            url: '/api/permissions/group/:groupID/database/:databaseID/schema/:schema',
-            params: {
-                databaseID: '@databaseID',
-                groupID: '@groupID',
-                schema: '@schema'
-            }
-        },
-        createTablePermissions: {
-            method: 'POST',
-            url: '/api/permissions/group/:groupID/table/:tableID',
-            params: {
-                groupID: '@groupID',
-                tableID: '@tableID'
-            }
-        },
-        deleteTablePermissions: {
-            method: 'DELETE',
-            url: '/api/permissions/group/:groupID/table/:tableID',
-            params: {
-                groupID: '@groupID',
-                tableID: '@tableID'
             }
         }
     });
