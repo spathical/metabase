@@ -184,8 +184,12 @@ export const getPermissionsGrid = createSelector(
                     groups,
                     permissions: {
                         "native": {
-                            options: ["write", "read"],
+                            options: ["write", "read", "none"],
                             updater: (perms, groupId, { databaseId }, value) => {
+                                // if enabling native query write access, give access to all schemas since they are equivalent
+                                if (value === "write") {
+                                    perms = updatePermission(perms, [groupId, databaseId, "schemas"], "all");
+                                }
                                 return updatePermission(perms, [groupId, databaseId, "native"], value);
                             },
                         },
@@ -194,6 +198,10 @@ export const getPermissionsGrid = createSelector(
                             updater: (perms, groupId, { databaseId }, value) => {
                                 let database = _.findWhere(databases, { id: databaseId });
                                 let schemaNames = database && _.uniq(database.tables.map(table => (table.schema || "")));
+                                // disable native query permisisons if setting schema access to none
+                                if (value === "none") {
+                                    perms = updatePermission(perms, [groupId, databaseId, "native"], "none");
+                                }
                                 return updatePermission(perms, [groupId, databaseId, "schemas"], value, schemaNames);
                             },
                             postAction: (groupId, { databaseId }, value) => {
@@ -236,21 +244,6 @@ function deleteIfEmpty(object, key) {
         delete object[key];
     }
 }
-
-/*
-
-permissionsDiff = {
-    groups: {
-        GROUP_ID: {
-            name:
-            databases: {
-
-            }
-        }
-    }
-}
-
-*/
 
 function diffDatabasePermissions(database, newGroupPermissions, oldGroupPermissions) {
     const databaseDiff = { grantedTables: {}, revokedTables: {} };

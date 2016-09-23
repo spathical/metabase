@@ -88,7 +88,7 @@ const databases = handleActions({
 const saveError = handleActions({
     [SAVE_PERMISSIONS]: {
         next: (state) => null,
-        throw: (state, { payload }) => payload && payload.data
+        throw: (state, { payload }) => (payload && typeof payload.data === "string" ? payload.data : payload.data.message) || "Sorry, an error occurred."
     },
     [LOAD_PERMISSIONS]: {
         next: (state) => null,
