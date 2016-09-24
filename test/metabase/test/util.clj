@@ -212,9 +212,8 @@
    `with-temp` should be preferrable going forward over creating random objects *without*
    deleting them afterward.
 
-    (with-temp EmailReport [report {:creator_id      (user->id :rasta)
-                                    :name            (random-name)
-                                    :organization_id @org-id}]
+    (with-temp EmailReport [report {:creator_id (user->id :rasta)
+                                    :name       (random-name)}]
       ...)"
   [entity [binding-form & [options-map]] & body]
   `(do-with-temp ~entity ~options-map (fn [~binding-form]
@@ -259,7 +258,7 @@
   (or (symbol? x)
       (instance? clojure.lang.Namespace x)))
 
-(defn resolve-private-fns* [source-namespace target-namespace symbols]
+(defn resolve-private-vars* [source-namespace target-namespace symbols]
   {:pre [(namespace-or-symbol? source-namespace)
          (namespace-or-symbol? target-namespace)
          (every? symbol? symbols)]}
@@ -269,13 +268,13 @@
                          (throw (Exception. (str source-namespace "/" symb " doesn't exist!"))))]]
     (intern target-namespace symb varr)))
 
-(defmacro resolve-private-fns
+(defmacro resolve-private-vars
   "Have your cake and eat it too. This Macro adds private functions from another namespace to the current namespace so we can test them.
 
-    (resolve-private-fns metabase.driver.generic-sql.sync
+    (resolve-private-vars metabase.driver.generic-sql.sync
       field-avg-length field-percent-urls)"
   [namespc & symbols]
-  `(resolve-private-fns* (quote ~namespc) *ns* (quote ~symbols)))
+  `(resolve-private-vars* (quote ~namespc) *ns* (quote ~symbols)))
 
 
 (defn obj->json->obj

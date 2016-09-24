@@ -11,10 +11,10 @@
             (metabase.test.data [dataset-definitions :as defs]
                                 [datasets :as datasets]
                                 [users :refer :all])
-            [metabase.test.util :refer [match-$ resolve-private-fns], :as tu]
+            [metabase.test.util :refer [match-$ resolve-private-vars], :as tu]
             [metabase.util :as u]))
 
-(resolve-private-fns metabase.models.table pk-field-id)
+(resolve-private-vars metabase.models.table pk-field-id)
 
 
 ;; ## /api/org/* AUTHENTICATION Tests
@@ -36,7 +36,6 @@
      :name               "test-data"
      :is_sample          false
      :is_full_sync       true
-     :organization_id    nil
      :description        nil
      :caveats            nil
      :points_of_interest nil
