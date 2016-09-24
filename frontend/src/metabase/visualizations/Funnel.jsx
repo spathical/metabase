@@ -10,7 +10,7 @@ import i from "icepick";
 export default class Funnel extends Component {
     static displayName = "Funnel";
     static identifier = "funnel";
-    static iconName = "number";
+    static iconName = "funnel";
 
     static minSize = { width: 3, height: 3 };
     static noHeader = true;

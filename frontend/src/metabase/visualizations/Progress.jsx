@@ -12,7 +12,7 @@ const BORDER_RADIUS = 5;
 export default class Progress extends Component {
     static displayName = "Progress";
     static identifier = "progress";
-    static iconName = "number";
+    static iconName = "progress";
 
     static minSize = { width: 3, height: 3 };
 
