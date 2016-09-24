@@ -76,12 +76,7 @@ export default class LineAreaBarChart extends Component {
         if (_.isEqual(series, newSeries) || newSeries.length === 0) {
             return series;
         } else {
-            // If we transformed a single series to multi series set that as the card title default
-            if (series.length === 1 && newSeries[0].card.visualization_settings["card.title"] == null) {
-                return i.assocIn(newSeries, [0, "card", "visualization_settings", "card.title"], series[0].card.name);
-            } else {
-                return newSeries;
-            }
+            return newSeries;
         }
     }
 

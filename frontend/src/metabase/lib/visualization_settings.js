@@ -132,13 +132,16 @@ const SETTINGS = {
         title: "Title",
         widget: ChartSettingInput,
         getDefault: (series) => series.length === 1 ? series[0].card.name : null,
-        dashboard: true
+        dashboard: true,
+        useRawSeries: true
     },
     "graph._dimension_filter": {
-        getDefault: ([{ card }]) => card.display === "scatter" ? isAnyField : isDimension
+        getDefault: ([{ card }]) => card.display === "scatter" ? isAnyField : isDimension,
+        useRawSeries: true
     },
     "graph._metric_filter": {
-        getDefault: ([{ card }]) => card.display === "scatter" ? isNumeric : isMetric
+        getDefault: ([{ card }]) => card.display === "scatter" ? isNumeric : isMetric,
+        useRawSeries: true
     },
     "graph.dimensions": {
         section: "Data",
@@ -160,7 +163,8 @@ const SETTINGS = {
         },
         readDependencies: ["graph._dimension_filter", "graph._metric_filter"],
         writeDependencies: ["graph.metrics"],
-        dashboard: false
+        dashboard: false,
+        useRawSeries: true
     },
     "graph.metrics": {
         section: "Data",
@@ -182,7 +186,8 @@ const SETTINGS = {
         },
         readDependencies: ["graph._dimension_filter", "graph._metric_filter"],
         writeDependencies: ["graph.dimensions"],
-        dashboard: false
+        dashboard: false,
+        useRawSeries: true
     },
     "scatter.bubble": {
         section: "Data",
@@ -200,7 +205,8 @@ const SETTINGS = {
             };
         },
         writeDependencies: ["graph.dimensions"],
-        dashboard: false
+        dashboard: false,
+        useRawSeries: true
     },
     "line.interpolate": {
         section: "Display",
@@ -658,6 +664,10 @@ function getSetting(id, vizSettings, series) {
         getSetting(dependentId, vizSettings, series);
     }
 
+    if (settingDef.useRawSeries && series._raw) {
+        series = series._raw;
+    }
+
     try {
         if (settingDef.getValue) {
             return vizSettings[id] = settingDef.getValue(series, vizSettings);
@@ -705,6 +715,9 @@ function getSettingWidget(id, vizSettings, series, onChangeSettings) {
             newSettings[id] = vizSettings[id];
         }
         onChangeSettings(newSettings)
+    }
+    if (settingDef.useRawSeries && series._raw) {
+        series = series._raw;
     }
     return {
         ...settingDef,

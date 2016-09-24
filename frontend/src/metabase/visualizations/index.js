@@ -53,6 +53,10 @@ export function getVisualizationTransformed(series) {
         if (typeof CardVisualization.transformSeries === "function") {
             series = CardVisualization.transformSeries(series);
         }
+        if (series !== lastSeries) {
+            series = [...series];
+            series._raw = lastSeries;
+        }
     } while (series !== lastSeries);
 
     return { series, CardVisualization };
