@@ -500,7 +500,15 @@ function lineAndBarOnRender(chart, settings, onGoalHover, isSplitAxis) {
         // add the label
         let goalLine = chart.selectAll(".goal .line")[0][0];
         if (goalLine) {
+
+            // stretch the goal line all the way across, use x axis as reference
+            let xAxisLine = chart.selectAll(".axis.x .domain")[0][0];
+            if (xAxisLine) {
+                goalLine.setAttribute("d", `M0,${goalLine.getBBox().y}L${xAxisLine.getBBox().width},${goalLine.getBBox().y}`)
+            }
+
             let { x, y, width } = goalLine.getBBox();
+
             const labelOnRight = !isSplitAxis;
             chart.selectAll(".goal .stack._0")
                 .append("text")
@@ -541,12 +549,12 @@ function lineAndBarOnRender(chart, settings, onGoalHover, isSplitAxis) {
         setDotStyle();
         enableDots();
         voronoiHover();
+        cleanupGoal(); // do this before hiding x-axis
         hideDisabledLabels();
         hideDisabledAxis();
         hideBadAxis();
         disableClickFiltering();
         fixStackZIndex();
-        cleanupGoal();
     });
 
     chart.render();
