@@ -602,6 +602,13 @@ CoreServices.factory('Permissions', ['$resource', function($resource) {
             url: '/api/permissions/group',
             isArray: true
         },
+        groupDetails: {
+            method: 'GET',
+            url: '/api/permissions/group/:id',
+            params: {
+                id: '@id'
+            }
+        },
         graph: {
             method: 'GET',
             url: '/api/permissions/graph'

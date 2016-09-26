@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from "react";
 
-import { Route, Redirect, IndexRedirect } from 'react-router';
+import { Route, Redirect, IndexRedirect, IndexRoute } from 'react-router';
 import { routerActions } from 'react-router-redux';
 import { UserAuthWrapper } from 'redux-auth-wrapper';
 
@@ -49,6 +49,10 @@ import ReferenceRevisionsList from "metabase/reference/containers/ReferenceRevis
 import ReferenceGettingStartedGuide from "metabase/reference/containers/ReferenceGettingStartedGuide.jsx";
 
 import getAdminPermissionsRoutes from "metabase/admin/permissions/routes.jsx";
+
+import AdminPeople from "metabase/admin/people/components/AdminPeople.jsx";
+import GroupsListingApp from "metabase/admin/people/containers/GroupsListingApp.jsx";
+import GroupDetailApp from "metabase/admin/people/containers/GroupDetailApp.jsx";
 
 const MetabaseIsSetup = UserAuthWrapper({
     predicate: authData => !authData.hasSetupToken,
@@ -186,7 +190,14 @@ export const getRoutes = (store) =>
                     <Route path=":entity/:id/revisions" component={RevisionHistoryApp} />
                 </Route>
 
-                <Route path="people" component={AdminPeopleApp} />
+                {/* PEOPLE */}
+                <Route path="people" component={AdminPeopleApp}>
+                    <IndexRoute component={AdminPeople} />
+                    <Route path="groups">
+                        <IndexRoute component={GroupsListingApp} />
+                        <Route path=":groupID" component={GroupDetailApp} />
+                    </Route>
+                </Route>
 
                 <Route path="settings" component={SettingsEditorApp} />
                 <Route path="settings/:section" component={SettingsEditorApp} />

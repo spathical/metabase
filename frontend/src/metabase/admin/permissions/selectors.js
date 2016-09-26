@@ -6,7 +6,7 @@ import { push } from "react-router-redux";
 import _ from "underscore";
 import { getIn, setIn } from "icepick";
 
-const getGroups = (state) => state.permissions.groups;
+export const getGroups = (state) => state.permissions.groups;
 const getDatabases = (state) => state.permissions.databases;
 const getPermissions = (state) => state.permissions.permissions;
 const getOriginalPermissions = (state) => state.permissions.originalPermissions;

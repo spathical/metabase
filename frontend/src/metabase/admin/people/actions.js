@@ -12,7 +12,7 @@ const user = new Schema('user');
 // resource wrappers
 const SessionApi = new AngularResourceProxy("Session", ["forgot_password"]);
 const UserApi = new AngularResourceProxy("User", ["list", "update", "create", "delete", "update_password", "send_invite"]);
-
+const PermissionsApi = new AngularResourceProxy("Permissions", ["groups", "groupDetails"]);
 
 // action constants
 export const CREATE_USER = 'CREATE_USER';
@@ -25,11 +25,18 @@ export const RESET_PASSWORD_MANUAL = 'RESET_PASSWORD_MANUAL';
 export const REVOKE_ADMIN = 'REVOKE_ADMIN';
 export const SHOW_MODAL = 'SHOW_MODAL';
 export const UPDATE_USER = 'UPDATE_USER';
+export const LOAD_GROUPS = 'LOAD_GROUPS';
+export const LOAD_GROUP_DETAILS = 'LOAD_GROUP_DETAILS';
 
 
 // action creators
 
 export const showModal = createAction(SHOW_MODAL);
+
+export const loadGroups = createAction(LOAD_GROUPS, () => PermissionsApi.groups());
+
+export const loadGroupDetails = createAction(LOAD_GROUP_DETAILS, (id) => PermissionsApi.groupDetails({ id: id}));
+
 
 export const createUser = createThunkAction(CREATE_USER, function(user) {
     return async function(dispatch, getState) {

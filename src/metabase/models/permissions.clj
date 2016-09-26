@@ -1,5 +1,6 @@
 (ns metabase.models.permissions
   (:require [clojure.data :as data]
+            [clojure.core.match :refer [match]]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [medley.core :as m]
@@ -33,7 +34,8 @@
 
 (def ^:private ^:const valid-object-path-patterns
   [#"^/db/(\d+)/$"                                ; permissions for the entire DB
-   #"^/db/(\d+)/native/$"                         ; permissions for native queries for the DB
+   #"^/db/(\d+)/native/$"                         ; permissions to create new native queries for the DB
+   #"^/db/(\d+)/native/read/$"                    ; permissions to read the results of existing native queries (i.e. view existing cards) for the DB
    #"^/db/(\d+)/schema/$"                         ; permissions for all schemas in the DB
    #"^/db/(\d+)/schema/([^\\/]*)/$"               ; permissions for a specific schema
    #"^/db/(\d+)/schema/([^\\/]*)/table/(\d+)/$"]) ; permissions for a specific table
@@ -78,12 +80,19 @@
   (^String [database-id schema-name]          (str (object-path database-id) "schema/" schema-name "/"))
   (^String [database-id schema-name table-id] (str (object-path database-id schema-name) "table/" table-id "/" )))
 
-(defn native-path
-  "Return the native query permissions path for a database."
+(defn- native-readwrite-path
+  "Return the native query read/write permissions path for a database.
+   This grants you permissions to run arbitary native queries."
   ^String [database-id]
   (str (object-path database-id) "native/"))
 
-(defn all-schemas-path
+(defn- native-read-path
+  "Return the native query *read* permissions path for a database.
+   This grants you permissions to view the results of an *existing* native query, i.e. view native Cards created by others."
+  ^String [database-id]
+  (str (object-path database-id) "native/read/"))
+
+(defn- all-schemas-path
   "Return the permissions path for a database that grants full access to all schemas."
   ^String [database-id]
   (str (object-path database-id) "schema/"))
@@ -126,11 +135,11 @@
               {s/Int TablePermissionsGraph}))
 
 (def ^:private NativePermissionsGraph
-  (s/enum :write :read))
+  (s/enum :write :read :none))
 
 (def ^:private DBPermissionsGraph
   {(s/optional-key :native)  NativePermissionsGraph
-   (s/optional-key :schemas) (s/cond-pre (s/enum :none :all)
+   (s/optional-key :schemas) (s/cond-pre (s/enum :all :none)
                                          {(s/maybe s/Str) SchemaPermissionsGraph})})
 
 (def ^:private GroupPermissionsGraph
@@ -139,6 +148,32 @@
 (def ^:private PermissionsGraph
   {:revision s/Int
    :groups   {s/Int GroupPermissionsGraph}})
+
+;; The "Strict" versions of the various graphs below are intended for schema checking when *updating* the permissions graph.
+;; In other words, we shouldn't be stopped from returning the graph if it violates the "strict" rules, but we *should* refuse to update the
+;; graph unless it matches the strict schema.
+;; TODO - It might be possible at some point in the future to just use the strict versions everywhere
+
+(defn- check-native-and-schemas-permissions-allowed-together [{:keys [native schemas]}]
+  (match [native schemas]
+    [:write :all]  :ok
+    [:write _]     (log/warn "Invalid DB permissions: if you have write access for native queries, you must have all access for schemas.")
+    [:none  :none] :ok
+    [:none  _]     (log/warn "Invalid DB permissions: if you have no native query access, you must also have no schema access.")
+    [_      :none] (log/warn "Invalid DB permissions: if you have no schema access, you must also have no native query access.")
+    [_      _]     :ok))
+
+(def ^:private StrictDBPermissionsGraph
+  (s/constrained DBPermissionsGraph
+                 check-native-and-schemas-permissions-allowed-together
+                 "DB permissions with a valid combination of values for :native and :schemas"))
+
+(def ^:private StrictGroupPermissionsGraph
+  {s/Int StrictDBPermissionsGraph})
+
+(def ^:private StrictPermissionsGraph
+  {:revision s/Int
+   :groups   {s/Int StrictGroupPermissionsGraph}})
 
 
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -164,10 +199,11 @@
              :else                                                                    :none)))
 
 
-(defn- table->native-path        [table] (native-path (:db_id table)))
-(defn- table->schema-object-path [table] (object-path (:db_id table) (:schema table)))
-(defn- table->table-object-path  [table] (object-path (:db_id table) (:schema table) (:id table)))
-(defn- table->all-schemas-path   [table] (all-schemas-path (:db_id table)))
+(defn- table->native-readwrite-path [table] (native-readwrite-path (:db_id table)))
+(defn- table->native-read-path      [table] (native-read-path (:db_id table)))
+(defn- table->schema-object-path    [table] (object-path (:db_id table) (:schema table)))
+(defn- table->table-object-path     [table] (object-path (:db_id table) (:schema table) (:id table)))
+(defn- table->all-schemas-path      [table] (all-schemas-path (:db_id table)))
 
 
 (s/defn ^:private schema-graph :- SchemaPermissionsGraph [permissions-set tables]
@@ -178,9 +214,10 @@
                      {(:id table) (permissions-for-path permissions-set (table->table-object-path table))}))))
 
 (s/defn ^:private db-graph :- DBPermissionsGraph [permissions-set tables]
-  {:native  (case (permissions-for-path permissions-set (table->native-path (first tables)))
+  {:native  (case (permissions-for-path permissions-set (table->native-readwrite-path (first tables)))
               :all  :write
-              :none :read)
+              :some :read
+              :none :none)
    :schemas (case (permissions-for-path permissions-set (table->all-schemas-path (first tables)))
               :all  :all
               :none :none
@@ -249,8 +286,9 @@
        (log/error (u/format-color 'red "Failed to grant permissions: %s" (.getMessage e)))))))
 
 
-(defn- revoke-native-permissions! [group-id database-id] (delete-related-permissions! group-id (native-path database-id)))
-(defn- grant-native-permissions!  [group-id database-id] (grant-permissions!          group-id (native-path database-id)))
+(defn- revoke-native-permissions!          [group-id database-id] (delete-related-permissions! group-id (native-readwrite-path database-id)))
+(defn- grant-native-readwrite-permissions! [group-id database-id] (grant-permissions!          group-id (native-readwrite-path database-id)))
+(defn- grant-native-read-permissions!      [group-id database-id] (grant-permissions!          group-id (native-read-path      database-id)))
 
 
 (defn- revoke-db-permissions!
@@ -258,11 +296,11 @@
    This does *not* revoke native permissions; use `revoke-native-permssions!` to do that."
   [group-id database-id]
   (delete-related-permissions! group-id (object-path database-id)
-    [:not= :object (native-path database-id)]))
+    [:not= :object (native-readwrite-path database-id)]))
 
 (defn- grant-full-db-permissions!
   "Grant full permissions for all schemas belonging to this database.
-   This does *not* grant native permissions; use `grant-native-permissions!` to do that."
+   This does *not* grant native permissions; use `grant-native-readwrite-permissions!` to do that."
   [group-id database-id]
   (grant-permissions! group-id (all-schemas-path database-id)))
 
@@ -283,12 +321,14 @@
                                  (update-table-perms! group-id db-id schema table-id table-perms))))
 
 (s/defn ^:private ^:always-validate update-native-permissions! [group-id :- s/Int, db-id :- s/Int, new-native-perms :- NativePermissionsGraph]
+  (revoke-native-permissions! group-id db-id)
   (case new-native-perms
-    :write (grant-native-permissions! group-id db-id)
-    :read  (revoke-native-permissions! group-id db-id)))
+    :write (grant-native-readwrite-permissions! group-id db-id)
+    :read  (grant-native-read-permissions! group-id db-id)
+    :none  nil))
 
 
-(s/defn ^:private ^:always-validate update-db-permissions! [group-id :- s/Int, db-id :- s/Int, new-db-perms :- DBPermissionsGraph]
+(s/defn ^:private ^:always-validate update-db-permissions! [group-id :- s/Int, db-id :- s/Int, new-db-perms :- StrictDBPermissionsGraph]
   (when-let [new-native-perms (:native new-db-perms)]
     (update-native-permissions! group-id db-id new-native-perms))
   (when-let [schemas (:schemas new-db-perms)]
@@ -299,7 +339,7 @@
       (map? schemas)    (doseq [schema (keys schemas)]
                           (update-schema-perms! group-id db-id schema (get-in new-db-perms [:schemas schema]))))))
 
-(s/defn ^:private ^:always-validate update-group-permissions! [group-id :- s/Int, new-group-perms :- GroupPermissionsGraph]
+(s/defn ^:private ^:always-validate update-group-permissions! [group-id :- s/Int, new-group-perms :- StrictGroupPermissionsGraph]
   (doseq [db-id (keys new-group-perms)]
     (update-db-permissions! group-id db-id (get new-group-perms db-id))))
 
@@ -331,15 +371,19 @@
    This should take in a graph that is exactly the same as the one obtained by `graph` with any changes made as needed. The graph is revisioned,
    so if it has been updated by a third party since you fetched it this function will fail and return a 409 (Conflict) exception.
    If nothing needs to be done, this function returns `nil`; otherwise it returns the newly created `PermissionsRevision` entry."
-  [new-graph :- PermissionsGraph]
-  (let [old-graph (graph)
-        [old new] (data/diff (:groups old-graph) (:groups new-graph))]
-    (when (or (seq old) (seq new))
-      (log/info (format "Changing permissions: 🔏\nFROM:\n%s\nTO:\n%s"
-                        (u/pprint-to-str 'magenta old)
-                        (u/pprint-to-str 'blue new)))
-      (check-revision-numbers old-graph new-graph)
-      (db/transaction
+  ([new-graph :- StrictPermissionsGraph]
+   (let [old-graph (graph)
+         [old new] (data/diff (:groups old-graph) (:groups new-graph))]
+     (when (or (seq old) (seq new))
+       (log/info (format "Changing permissions: 🔏\nFROM:\n%s\nTO:\n%s"
+                         (u/pprint-to-str 'magenta old)
+                         (u/pprint-to-str 'blue new)))
+       (check-revision-numbers old-graph new-graph)
+       (db/transaction
         (doseq [group-id (keys new)]
           (update-group-permissions! group-id (get new group-id)))
         (save-perms-revision! (:revision old-graph) old new)))))
+  ;; The following arity is provided soley for convenience for tests/REPL usage
+  ([ks new-value]
+   {:pre [(sequential? ks)]}
+   (update-graph! (assoc-in (graph) ks new-value))))
