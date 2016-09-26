@@ -1,34 +1,37 @@
 (ns metabase.models.permissions-group
-  (:require [clojure.string :as s]
-            [metabase.db :as db]
+  (:require [metabase.db :as db]
             [metabase.models.interface :as i]
             [metabase.util :as u]))
 
 (i/defentity PermissionsGroup :permissions_group)
 
 
-;;; magic permissions groups getter helper fns
+;;; ------------------------------------------------------------ Magic Groups Getter Fns ------------------------------------------------------------
 
-(def ^{:arglists '([])}
-  ^metabase.models.permissions_group.PermissionsGroupInstance
+(defn- group-fetch-fn [group-name]
+  (memoize (fn []
+             (or (db/select-one PermissionsGroup
+                   :name group-name)
+                 (db/insert! PermissionsGroup
+                   :name group-name)))))
+
+(def ^{:arglists '([])} ^metabase.models.permissions_group.PermissionsGroupInstance
   default
   "Fetch the `Default` permissions group, creating it if needed."
-  (memoize (fn []
-             (or (db/select-one PermissionsGroup
-                   :name "Default")
-                 (db/insert! PermissionsGroup
-                   :name "Default")))))
+  (group-fetch-fn "Default"))
 
-(def
-  ^{:arglists '([])}
-  ^metabase.models.permissions_group.PermissionsGroupInstance
+(def ^{:arglists '([])} ^metabase.models.permissions_group.PermissionsGroupInstance
   admin
   "Fetch the `Admin` permissions group, creating it if needed."
-  (memoize (fn []
-             (or (db/select-one PermissionsGroup
-                   :name "Admin")
-                 (db/insert! PermissionsGroup
-                   :name "Admin")))))
+  (group-fetch-fn "Admin"))
+
+(def ^{:arglists '([])} ^metabase.models.permissions_group.PermissionsGroupInstance
+  metabot
+  "Fetch the `MetaBot` permissions group, creating it if needed."
+  (group-fetch-fn "MetaBot"))
+
+
+;;; ------------------------------------------------------------ Validation ------------------------------------------------------------
 
 (defn exists-with-name?
   "Does a `PermissionsGroup` with GROUP-NAME exist in the DB? (case-insensitive)"
@@ -37,36 +40,39 @@
   (db/exists? PermissionsGroup
     :%lower.name (s/lower-case (name group-name))))
 
-(defn- throw-exception-if-name-already-taken
+(defn- check-name-not-already-taken
   [group-name]
   (when (exists-with-name? group-name)
     (throw (ex-info "A group with that name already exists." {:status-code 400}))))
 
-(defn- throw-exception-when-editing-magic-group
+(defn- check-not-magic-group
   "Make sure we're not trying to edit/delete one of the magic groups, or throw an exception."
   [{id :id}]
   {:pre [(integer? id)]}
-  (when (= id (:id (default)))
-    (throw (ex-info "You cannot edit or delete the 'Default' permissions group!" {:status-code 400})))
-  (when (= id (:id (admin)))
-    (throw (ex-info "You cannot edit or delete the 'Admin' permissions group!" {:status-code 400}))))
+  (doseq [magic-group [(default)
+                       (admin)
+                       (metabot)]]
+    (when (= id (:id magic-group))
+      (throw (ex-info (format "You cannot edit or delete the '%s' permissions group!" (:name magic-group))
+               {:status-code 400})))))
 
+
+;;; ------------------------------------------------------------ Lifecycle ------------------------------------------------------------
 
 (defn- pre-insert [{group-name :name, :as group}]
   (u/prog1 group
-    (throw-exception-if-name-already-taken group-name)))
-
+    (check-name-not-already-taken group-name)))
 
 (defn- pre-cascade-delete [{id :id, :as group}]
-  (throw-exception-when-editing-magic-group group)
+  (check-not-magic-group group)
   (db/cascade-delete! 'Permissions                :group_id id)
   (db/cascade-delete! 'PermissionsGroupMembership :group_id id))
 
 (defn- pre-update [{group-name :name, :as group}]
   (u/prog1 group
-    (throw-exception-when-editing-magic-group group)
+    (check-not-magic-group group)
     (when group-name
-      (throw-exception-if-name-already-taken group-name))))
+      (check-name-not-already-taken group-name))))
 
 (u/strict-extend (class PermissionsGroup)
   i/IEntity (merge i/IEntityDefaults
@@ -75,15 +81,20 @@
                     :pre-update         pre-update}))
 
 
+;;; ------------------------------------------------------------ Util Fns ------------------------------------------------------------
+
+
 (defn members
   "Return `Users` that belong to PERMISSIONS-GROUP, ordered by their name (case-insensitive)."
-  [{id :id}]
-  {:pre [(integer? id)]}
-  (let [user-id->membership-id (into {} (for [{:keys [id user_id]} (db/select ['PermissionsGroupMembership :id :user_id] :group_id id)]
-                                          {user_id id}))]
-    (when (seq user-id->membership-id)
-      (for [user (sort-by (comp :common_name s/lower-case)
-                          (db/select ['User :first_name :last_name :email [:id :user_id]]
-                            :id [:in (keys user-id->membership-id)]))]
-        (assoc user
-          :membership_id (user-id->membership-id (:user_id user)))))))
+  [{group-id :id}]
+  {:pre [(integer? group-id)]}
+  (db/query {:select    [:core_user.first_name
+                         :core_user.last_name
+                         :core_user.email
+                         [:core_user.id :user_id]
+                         [:permissions_group_membership.id :membership_id]]
+             :from      [:core_user]
+             :left-join [:permissions_group_membership [:= :core_user.id :permissions_group_membership.user_id]]
+             :where     [:= :permissions_group_membership.group_id 1],
+             :order-by  [[:%lower.core_user.first_name :asc]
+                         [:%lower.core_user.last_name :asc]]}))
