@@ -200,7 +200,6 @@
 
 
 (defn- table->native-readwrite-path [table] (native-readwrite-path (:db_id table)))
-(defn- table->native-read-path      [table] (native-read-path (:db_id table)))
 (defn- table->schema-object-path    [table] (object-path (:db_id table) (:schema table)))
 (defn- table->table-object-path     [table] (object-path (:db_id table) (:schema table) (:id table)))
 (defn- table->all-schemas-path      [table] (all-schemas-path (:db_id table)))
