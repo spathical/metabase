@@ -24,7 +24,7 @@ const mapDispatchToProps = {
 export default class GroupDetailApp extends Component {
     async componentWillMount() {
         await this.props.loadGroups();
-        await this.props.loadUsers();
+        await this.props.fetchUsers();
     }
 
     async componentWillReceiveProps(nextProps) {
