@@ -60,7 +60,7 @@ const OPTIONS_UI = {
     },
     "read": {
         title: "View raw queries",
-        icon: "ellipsis",
+        icon: "eye",
         iconColor: "#F9D45C",
         bgColor: "#FEFAEE"
     },
