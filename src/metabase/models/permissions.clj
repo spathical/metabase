@@ -296,9 +296,10 @@
    This does *not* revoke native permissions; use `revoke-native-permssions!` to do that."
   [group-id database-id]
   (delete-related-permissions! group-id (object-path database-id)
-    [:not= :object (native-readwrite-path database-id)]))
+    [:not= :object (native-readwrite-path database-id)]
+    [:not= :object (native-read-path database-id)]))
 
-(defn- grant-full-db-permissions!
+(defn grant-full-db-permissions!
   "Grant full permissions for all schemas belonging to this database.
    This does *not* grant native permissions; use `grant-native-readwrite-permissions!` to do that."
   [group-id database-id]
