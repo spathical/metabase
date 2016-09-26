@@ -1,5 +1,6 @@
 (ns metabase.models.permissions-group
-  (:require [metabase.db :as db]
+  (:require [clojure.string :as s]
+            [metabase.db :as db]
             [metabase.models.interface :as i]
             [metabase.util :as u]))
 
