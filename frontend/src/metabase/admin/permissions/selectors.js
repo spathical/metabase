@@ -1,10 +1,12 @@
+/* @flow weak */
 
 import { createSelector } from 'reselect';
 
 import { push } from "react-router-redux";
 
+import { diffPermissions, updatePermission, getNativePermissions, getSchemasPermissions, getTablesPermissions, getFieldsPermissions } from "metabase/lib/permissions";
+
 import _ from "underscore";
-import { getIn, setIn } from "icepick";
 
 const getGroups = (state) => state.permissions.groups;
 const getDatabases = (state) => state.permissions.databases;
@@ -21,85 +23,6 @@ export const getDirty = createSelector(
 
 export const getSaveError = (state) => state.permissions.saveError;
 
-const getAccess = (value) => {
-    if (!value) {
-        return "none";
-    } else if (typeof value === "object") {
-        return "controlled";
-    } else {
-        return value;
-    }
-}
-
-const getDatabasePermissions = (permissions, dbId) => {
-    let db = getIn(permissions, [dbId]);
-    return {
-        native: db.native,
-        schemas: getAccess(db.schemas)
-    };
-}
-
-const getSchemaPermissions = (permissions, dbId, schemaName) => {
-    let { schemas } = getDatabasePermissions(permissions, dbId);
-    if (schemas === "controlled") {
-        let tables = getIn(permissions, [dbId, "schemas", schemaName || ""]);
-        if (tables) {
-            return {
-                tables: getAccess(tables)
-            };
-        } else {
-            return {
-                tables: "none"
-            };
-        }
-    } else {
-        return {
-            tables: schemas
-        };
-    }
-}
-
-const getTablePermissions = (permissions, dbId, schemaName, tableId) => {
-    let { tables } = getSchemaPermissions(permissions, dbId, schemaName);
-    if (tables === "controlled") {
-        let fields = getIn(permissions, [dbId, "schemas", schemaName || "", tableId]);
-        if (fields) {
-            return {
-                fields: getAccess(fields)
-            };
-        } else {
-            return {
-                fields: "none"
-            };
-        }
-    } else {
-        return {
-            fields: tables
-        };
-    }
-}
-
-
-function updatePermission(perms, path, value, entityIds) {
-    let current = getIn(perms, path);
-    if (current === value || (current && typeof current === "object" && value === "controlled")) {
-        return perms;
-    }
-    if (value === "controlled") {
-        value = {};
-        if (entityIds) {
-            for (let entityId of entityIds) {
-                value[entityId] = current
-            }
-        }
-    }
-    for (var i = 0; i < path.length; i++) {
-        if (typeof getIn(perms, path.slice(0, i)) === "string") {
-            perms = setIn(perms, path.slice(0, i), {});
-        }
-    }
-    return setIn(perms, path, value);
-}
 
 export const getPermissionsGrid = createSelector(
     getGroups, getDatabases, getPermissions, getParams,
@@ -137,9 +60,9 @@ export const getPermissionsGrid = createSelector(
                         name: table.display_name,
                     })),
                     data: tables.map(table =>
-                        groups.map(group =>
-                            getTablePermissions(permissions[group.id], databaseId, schemaName, table.id)
-                        )
+                        groups.map(group => ({
+                            fields: getFieldsPermissions(permissions[group.id], databaseId, schemaName, table.id)
+                        }))
                     )
                 }
             } else if (databaseId != null) {
@@ -173,9 +96,9 @@ export const getPermissionsGrid = createSelector(
                         link: { name: "View tables", url: `/admin/permissions/databases/${databaseId}/schemas/${encodeURIComponent(schemaName)}/tables`}
                     })),
                     data: schemaNames.map(schemaName =>
-                        groups.map(group =>
-                            getSchemaPermissions(permissions[group.id], databaseId, schemaName)
-                        )
+                        groups.map(group => ({
+                            tables: getTablesPermissions(permissions[group.id], databaseId, schemaName)
+                        }))
                     )
                 }
             } else {
@@ -183,16 +106,6 @@ export const getPermissionsGrid = createSelector(
                     type: "database",
                     groups,
                     permissions: {
-                        "native": {
-                            options: ["write", "read", "none"],
-                            updater: (perms, groupId, { databaseId }, value) => {
-                                // if enabling native query write access, give access to all schemas since they are equivalent
-                                if (value === "write") {
-                                    perms = updatePermission(perms, [groupId, databaseId, "schemas"], "all");
-                                }
-                                return updatePermission(perms, [groupId, databaseId, "native"], value);
-                            },
-                        },
                         "schemas": {
                             options: ["all", "controlled", "none"],
                             updater: (perms, groupId, { databaseId }, value) => {
@@ -209,7 +122,17 @@ export const getPermissionsGrid = createSelector(
                                     return push(`/admin/permissions/databases/${databaseId}/schemas`);
                                 }
                             }
-                        }
+                        },
+                        "native": {
+                            options: ["write", "read", "none"],
+                            updater: (perms, groupId, { databaseId }, value) => {
+                                // if enabling native query write access, give access to all schemas since they are equivalent
+                                if (value === "write") {
+                                    perms = updatePermission(perms, [groupId, databaseId, "schemas"], "all");
+                                }
+                                return updatePermission(perms, [groupId, databaseId, "native"], value);
+                            },
+                        },
                     },
                     entities: databases.map(database => {
                         let schemas = _.uniq(database.tables.map(table => (table.schema || "")));
@@ -227,9 +150,10 @@ export const getPermissionsGrid = createSelector(
                         }
                     }),
                     data: databases.map(database =>
-                        groups.map(group =>
-                            getDatabasePermissions(permissions[group.id], database.id)
-                        )
+                        groups.map(group => ({
+                            native: getNativePermissions(permissions[group.id], database.id),
+                            schemas: getSchemasPermissions(permissions[group.id], database.id)
+                        }))
                     )
                 }
             }
@@ -239,65 +163,6 @@ export const getPermissionsGrid = createSelector(
     }
 );
 
-function deleteIfEmpty(object, key) {
-    if (Object.keys(object[key]).length === 0) {
-        delete object[key];
-    }
-}
-
-function diffDatabasePermissions(database, newGroupPermissions, oldGroupPermissions) {
-    const databaseDiff = { grantedTables: {}, revokedTables: {} };
-    // get the native permisisons for this db
-    const oldDbPerm = getDatabasePermissions(oldGroupPermissions, database.id);
-    const newDbPerm = getDatabasePermissions(newGroupPermissions, database.id);
-    if (oldDbPerm.native !== newDbPerm.native) {
-        databaseDiff.native = newDbPerm.native;
-    }
-    // check each table in this db
-    for (const table of database.tables) {
-        const oldTablePerm = getTablePermissions(oldGroupPermissions, database.id, table.schema, table.id);
-        const newTablePerm = getTablePermissions(newGroupPermissions, database.id, table.schema, table.id);
-        if (oldTablePerm.fields !== newTablePerm.fields) {
-            if (newTablePerm.fields === "none") {
-                databaseDiff.revokedTables[table.id] = { name: table.display_name };
-            } else {
-                databaseDiff.grantedTables[table.id] = { name: table.display_name };
-            }
-        }
-    }
-    // remove types that have no tables
-    for (let type of ["grantedTables", "revokedTables"]) {
-        deleteIfEmpty(databaseDiff, type);
-    }
-    return databaseDiff;
-}
-
-function diffGroupPermissions(databases, newGroupPermissions, oldGroupPermissions) {
-    let groupDiff = { databases: {} };
-    for (const database of databases) {
-        groupDiff.databases[database.id] = diffDatabasePermissions(database, newGroupPermissions, oldGroupPermissions);
-        deleteIfEmpty(groupDiff.databases, database.id);
-        if (groupDiff.databases[database.id]) {
-            groupDiff.databases[database.id].name = database.name;
-        }
-    }
-    deleteIfEmpty(groupDiff, "databases");
-    return groupDiff;
-}
-
-function diffPermissions(groups, databases, newPermissions, oldPermissions) {
-    let permissionsDiff = { groups: {} };
-    if (databases && newPermissions && oldPermissions) {
-        for (let group of groups) {
-            permissionsDiff.groups[group.id] = diffGroupPermissions(databases, newPermissions[group.id], oldPermissions[group.id]);
-            deleteIfEmpty(permissionsDiff.groups, group.id);
-            if (permissionsDiff.groups[group.id]) {
-                permissionsDiff.groups[group.id].name = group.name;
-            }
-        }
-    }
-    return permissionsDiff;
-}
 
 export const getDiff = createSelector(
     getGroups,
