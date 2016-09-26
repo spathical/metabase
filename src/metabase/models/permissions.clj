@@ -155,13 +155,16 @@
 ;; TODO - It might be possible at some point in the future to just use the strict versions everywhere
 
 (defn- check-native-and-schemas-permissions-allowed-together [{:keys [native schemas]}]
-  (match [native schemas]
-    [:write :all]  :ok
-    [:write _]     (log/warn "Invalid DB permissions: if you have write access for native queries, you must have all access for schemas.")
-    [:none  :none] :ok
-    [:none  _]     (log/warn "Invalid DB permissions: if you have no native query access, you must also have no schema access.")
-    [_      :none] (log/warn "Invalid DB permissions: if you have no schema access, you must also have no native query access.")
-    [_      _]     :ok))
+  ;; Only do the check when we have both, e.g. when the entire graph is coming in
+  (if-not (and native schemas)
+    :ok
+    (match [native schemas]
+      [:write :all]  :ok
+      [:write _]     (log/warn "Invalid DB permissions: if you have write access for native queries, you must have all access for schemas.")
+      [:none  :none] :ok
+      [:none  _]     (log/warn "Invalid DB permissions: if you have no native query access, you must also have no schema access.")
+      [_      :none] (log/warn "Invalid DB permissions: if you have no schema access, you must also have no native query access.")
+      [_      _]     :ok)))
 
 (def ^:private StrictDBPermissionsGraph
   (s/constrained DBPermissionsGraph
