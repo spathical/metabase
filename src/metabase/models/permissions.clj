@@ -200,7 +200,6 @@
 
 
 (defn- table->native-readwrite-path [table] (native-readwrite-path (:db_id table)))
-(defn- table->native-read-path      [table] (native-read-path (:db_id table)))
 (defn- table->schema-object-path    [table] (object-path (:db_id table) (:schema table)))
 (defn- table->table-object-path     [table] (object-path (:db_id table) (:schema table) (:id table)))
 (defn- table->all-schemas-path      [table] (all-schemas-path (:db_id table)))
@@ -296,9 +295,10 @@
    This does *not* revoke native permissions; use `revoke-native-permssions!` to do that."
   [group-id database-id]
   (delete-related-permissions! group-id (object-path database-id)
-    [:not= :object (native-readwrite-path database-id)]))
+    [:not= :object (native-readwrite-path database-id)]
+    [:not= :object (native-read-path database-id)]))
 
-(defn- grant-full-db-permissions!
+(defn grant-full-db-permissions!
   "Grant full permissions for all schemas belonging to this database.
    This does *not* grant native permissions; use `grant-native-readwrite-permissions!` to do that."
   [group-id database-id]

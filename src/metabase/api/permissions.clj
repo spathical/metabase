@@ -86,6 +86,13 @@
              :group-by  [:pg.id :pg.name]
              :order-by  [:%lower.pg.name]}))
 
+(defendpoint GET "/group/:id"
+  "Fetch the details for a certain permissions group."
+  [id]
+  (check-superuser)
+  (-> (PermissionsGroup id)
+      (hydrate :members)))
+
 (defendpoint POST "/group"
   "Create a new `PermissionsGroup`."
   [:as {{:keys [name]} :body}]

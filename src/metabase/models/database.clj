@@ -4,22 +4,20 @@
             [metabase.api.common :refer [*current-user*]]
             [metabase.db :as db]
             (metabase.models [interface :as i]
+                             [permissions, :as perms]
                              [permissions-group :as perm-group])
             [metabase.util :as u]))
 
-(def ^:const protected-password
-  "The string to replace passwords with when serializing Databases."
-  "**MetabasePass**")
-
+;;; ------------------------------------------------------------ Entity & Lifecycle ------------------------------------------------------------
 
 (i/defentity Database :metabase_database)
 
-(defn- post-insert [{id :id, :as database}]
+(defn- post-insert [{database-id :id, :as database}]
   (u/prog1 database
-    ;; add this database to the default permissions group
-    (db/insert! 'Permissions
-      :object   (str "/db/" id "/")
-      :group_id (:id (perm-group/default)))))
+    ;; add this database to the default and metabot permissions groups
+    (doseq [{group-id :id} [(perm-group/default)
+                            (perm-group/metabot)]]
+      (perms/grant-full-db-permissions! group-id database-id))))
 
 (defn- post-select [{:keys [engine] :as database}]
   (if-not engine database
@@ -29,16 +27,9 @@
 
 (defn- pre-cascade-delete [{:keys [id]}]
   (db/cascade-delete! 'Card        :database_id id)
-  (db/cascade-delete! 'Permissions :object [:like (str "/db/" id "/%")])
+  (db/cascade-delete! 'Permissions :object [:like (str (perms/object-path id) "%")])
   (db/cascade-delete! 'Table       :db_id       id)
   (db/cascade-delete! 'RawTable    :database_id id))
-
-(defn pk-fields
-  "Return all the primary key `Fields` associated with this DATABASE."
-  [{:keys [id]}]
-  (let [table-ids (db/select-ids 'Table, :db_id id, :active true)]
-    (when (seq table-ids)
-      (db/select 'Field, :table_id [:in table-ids], :special_type (db/isa :type/PK)))))
 
 
 (u/strict-extend (class Database)
@@ -54,6 +45,8 @@
           :pre-cascade-delete pre-cascade-delete}))
 
 
+;;; ------------------------------------------------------------ Hydration / Util Fns ------------------------------------------------------------
+
 (defn ^:hydrate tables
   "Return the `Tables` associated with this `Database`."
   [{:keys [id]}]
@@ -67,11 +60,24 @@
                         :db_id id
                         {:modifiers [:DISTINCT]}))))
 
+(defn pk-fields
+  "Return all the primary key `Fields` associated with this DATABASE."
+  [{:keys [id]}]
+  (let [table-ids (db/select-ids 'Table, :db_id id, :active true)]
+    (when (seq table-ids)
+      (db/select 'Field, :table_id [:in table-ids], :special_type (db/isa :type/PK)))))
+
 (defn schema-exists?
   "Does DATABASE have any tables with SCHEMA?"
   ^Boolean [{:keys [id]}, schema]
   (db/exists? 'Table :db_id id, :schema (some-> schema name)))
 
+
+;;; ------------------------------------------------------------ JSON Encoder ------------------------------------------------------------
+
+(def ^:const protected-password
+  "The string to replace passwords with when serializing Databases."
+  "**MetabasePass**")
 
 (add-encoder DatabaseInstance (fn [db json-generator]
                                 (encode-map (cond

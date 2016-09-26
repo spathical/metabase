@@ -452,6 +452,29 @@
   `(do-with-call-counting (fn [~call-count-fn-binding] ~@body)))
 
 
+(defn- format-sql [sql]
+  (when sql
+    (loop [sql sql, [k & more] ["FROM" "WHERE" "LEFT JOIN" "ORDER BY" "LIMIT"]]
+      (if-not k
+        sql
+        (recur (s/replace sql (re-pattern (format "\\s+%s\\s+" k)) (format "\n%s " k))
+               more)))))
+
+(def ^:dynamic ^:private *debug-print-queries* false)
+
+(defn do-with-debug-print-queries
+  "Execute F with debug query logging enabled. Don't use this directly; prefer the `debug-print-queries` macro form instead."
+  [f]
+  (binding [*debug-print-queries* true]
+    (f)))
+
+(defmacro debug-print-queries
+  "Print the HoneySQL and SQL forms of any queries executed inside BODY to `stdout`. Intended for use during REPL development."
+  {:style/indent 0}
+  [& body]
+  `(do-with-debug-print-queries (fn [] ~@body)))
+
+
 (defn- honeysql->sql
   "Compile HONEYSQL-FORM to SQL.
   This returns a vector with the SQL string as its first item and prepared statement params as the remaining items."
@@ -460,6 +483,8 @@
   ;; Not sure *why* but without setting this binding on *rare* occasion HoneySQL will unwantedly generate SQL for a subquery and wrap the query in parens like "(UPDATE ...)" which is invalid
   (u/prog1 (binding [hformat/*subquery?* false]
              (hsql/format honeysql-form, :quoting (quoting-style), :allow-dashed-names? true))
+    (when *debug-print-queries*
+      (println (u/pprint-to-str 'blue honeysql-form) "\n" (u/format-color 'green (format-sql (first <>)))))
     (when-not *disable-db-logging*
       (log/debug (str "DB Call: " (first <>)))
       (when *call-count*
@@ -774,8 +799,9 @@
      (select 'Database :name [:not= nil] {:limit 2}) -> [...]"
   {:style/indent 1}
   [entity & options]
-  (let [fields (entity->fields entity)]
-    (simple-select entity (where+ {:select (or fields [:*])} options))))
+  (simple-select entity (where+ {:select (or (entity->fields entity)
+                                             [:*])}
+                                options)))
 
 (defn select-field
   "Select values of a single field for multiple objects. These are returned as a set if any matching fields were returned, otherwise `nil`.

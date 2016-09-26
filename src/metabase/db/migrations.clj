@@ -12,7 +12,7 @@
                              [database :refer [Database]]
                              [field :refer [Field]]
                              [interface :refer [defentity]]
-                             [permissions :refer [Permissions], :as permissions]
+                             [permissions :refer [Permissions], :as perms]
                              [permissions-group :as perm-group]
                              [permissions-group-membership :refer [PermissionsGroupMembership]]
                              [raw-column :refer [RawColumn]]
@@ -165,6 +165,7 @@
 
 ;; populate RawTable and RawColumn information
 ;; NOTE: we only handle active Tables/Fields and we skip any FK relationships (they can safely populate later)
+;; TODO - this function is way to big and hard to read -- See https://github.com/metabase/metabase/wiki/Metabase-Clojure-Style-Guide#break-up-larger-functions
 (defmigration create-raw-tables
   (when (zero? (db/select-one-count RawTable))
     (binding [db/*disable-db-logging* true]
@@ -230,22 +231,23 @@
           :group_id admin-group-id)))))
 
 ;; add existing databases to default permissions groups.
-(defmigration add-databases-to-default-permissions-groups
-  (let [{default-group-id :id} (perm-group/default)
-        {admin-group-id :id}   (perm-group/admin)]
-    ;; admin group has a single entry that lets it access to everything
-    (binding [permissions/*allow-admin-permissions-changes* true
-              permissions/*allow-root-entries* true]
+(defmigration add-databases-to-magic-permissions-groups
+  ;; admin group has a single entry that lets it access to everything
+  (binding [perms/*allow-admin-permissions-changes* true
+            perms/*allow-root-entries* true]
+    (u/ignore-exceptions
+      (db/insert! Permissions
+        :group_id (perm-group/admin)
+        :object   "/")))
+  ;; default and metabot groups have entries for each individual DB
+  (let [db-ids (db/select-ids Database)]
+    (doseq [{group-id :id} [(perm-group/default)
+                            (perm-group/metabot)]
+            database-id    db-ids]
       (u/ignore-exceptions
         (db/insert! Permissions
-          :group_id admin-group-id
-          :object   "/")))
-    ;; default group has entries for each individual DB
-    (doseq [database-id (db/select-ids Database)]
-      (u/ignore-exceptions
-        (db/insert! Permissions
-          :object   (str "/db/" database-id "/")
-          :group_id default-group-id)))))
+          :object   (perms/object-path database-id)
+          :group_id group-id)))))
 
 
 ;;; New type system
