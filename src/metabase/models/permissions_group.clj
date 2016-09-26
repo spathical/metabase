@@ -95,6 +95,6 @@
                          [:permissions_group_membership.id :membership_id]]
              :from      [:core_user]
              :left-join [:permissions_group_membership [:= :core_user.id :permissions_group_membership.user_id]]
-             :where     [:= :permissions_group_membership.group_id 1],
+             :where     [:= :permissions_group_membership.group_id group-id]
              :order-by  [[:%lower.core_user.first_name :asc]
                          [:%lower.core_user.last_name :asc]]}))
