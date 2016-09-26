@@ -85,7 +85,7 @@
 ;;; ------------------------------------------------------------ Util Fns ------------------------------------------------------------
 
 
-(defn members
+(defn ^:hydrate members
   "Return `Users` that belong to PERMISSIONS-GROUP, ordered by their name (case-insensitive)."
   [{group-id :id}]
   {:pre [(integer? group-id)]}
