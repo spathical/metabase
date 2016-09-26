@@ -2,6 +2,7 @@
 import React, { Component, PropTypes } from "react";
 import { Link } from "react-router";
 import _ from "underscore";
+import { connect } from "react-redux";
 
 import LoadingAndErrorWrapper from "metabase/components/LoadingAndErrorWrapper.jsx";
 import MetabaseSettings from "metabase/lib/settings";
@@ -27,7 +28,41 @@ export const MODAL_RESET_PASSWORD_EMAIL = 'MODAL_RESET_PASSWORD_EMAIL';
 export const MODAL_USER_ADDED_WITH_INVITE = 'MODAL_USER_ADDED_WITH_INVITE';
 export const MODAL_USER_ADDED_WITH_PASSWORD = 'MODAL_USER_ADDED_WITH_PASSWORD';
 
+import { adminPeopleSelectors } from "../selectors";
+import {
+    createUser,
+    deleteUser,
+    fetchUsers,
+    grantAdmin,
+    resetPasswordManually,
+    resetPasswordViaEmail,
+    revokeAdmin,
+    showModal,
+    updateUser,
+    resendInvite
+} from "../actions";
 
+const mapStateToProps = (state, props) => {
+    return {
+        ...adminPeopleSelectors(state),
+        user: state.currentUser
+    }
+}
+
+const mapDispatchToProps = {
+    createUser,
+    deleteUser,
+    fetchUsers,
+    grantAdmin,
+    resetPasswordManually,
+    resetPasswordViaEmail,
+    revokeAdmin,
+    showModal,
+    updateUser,
+    resendInvite
+};
+
+@connect(mapStateToProps, mapDispatchToProps)
 export default class AdminPeople extends Component {
 
     constructor(props, context) {

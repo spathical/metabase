@@ -1,45 +1,23 @@
 /* eslint "react/prop-types": "warn" */
 import React, { Component, PropTypes } from "react";
-import { connect } from "react-redux";
 
-import AdminPeople from "../components/AdminPeople.jsx";
-import { adminPeopleSelectors } from "../selectors";
-import {
-    createUser,
-    deleteUser,
-    fetchUsers,
-    grantAdmin,
-    resetPasswordManually,
-    resetPasswordViaEmail,
-    revokeAdmin,
-    showModal,
-    updateUser,
-    resendInvite
-} from "../actions";
+import { LeftNavPane, LeftNavPaneItem } from "metabase/components/LeftNavPane.jsx";
 
-const mapStateToProps = (state, props) => {
-    return {
-        ...adminPeopleSelectors(state),
-        user: state.currentUser
-    }
-}
-
-const mapDispatchToProps = {
-    createUser,
-    deleteUser,
-    fetchUsers,
-    grantAdmin,
-    resetPasswordManually,
-    resetPasswordViaEmail,
-    revokeAdmin,
-    showModal,
-    updateUser,
-    resendInvite
-};
-
-@connect(mapStateToProps, mapDispatchToProps)
 export default class AdminPeopleApp extends Component {
     render() {
-        return <AdminPeople {...this.props} />;
+        const title = "People"
+        const { location: { pathname }, children } = this.props;
+        return (
+            <div className="flex">
+                { title }
+                <LeftNavPane>
+                    <LeftNavPaneItem name="People" path="/admin/people" selected={pathname.startsWith('admin/people')} />
+                    <LeftNavPaneItem name="Groups" path="/admin/people/groups" selected={pathname.startsWith('admin/people/groups')} />
+                </LeftNavPane>
+                <div className="flex-full">
+                    {children}
+                </div>
+            </div>
+        );
     }
 }
