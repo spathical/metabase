@@ -11,11 +11,9 @@ export default class AdminPeopleApp extends Component {
     };
 
     render() {
-        const title = "People"
         const { children } = this.props;
         return (
             <AdminLayout
-                title={title}
                 sidebar={
                     <LeftNavPane>
                         <LeftNavPaneItem name="People" path="/admin/people" index />

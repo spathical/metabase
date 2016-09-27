@@ -5,6 +5,7 @@ import _ from "underscore";
 import { connect } from "react-redux";
 
 import LoadingAndErrorWrapper from "metabase/components/LoadingAndErrorWrapper.jsx";
+import AdminPaneLayout from "metabase/components/AdminPaneLayout.jsx";
 import MetabaseSettings from "metabase/lib/settings";
 import MetabaseUtils from "metabase/lib/utils";
 import Modal from "metabase/components/Modal.jsx";
@@ -396,14 +397,11 @@ export default class PeopleListingApp extends Component {
         return (
             <LoadingAndErrorWrapper loading={!users} error={error}>
             {() =>
-                <div className="wrapper">
-                    { modal ? this.renderModal(modal.type, modal.details) : null }
-
-                    <section className="clearfix px2">
-                        <a data-metabase-event="People Admin;Add Person Modal" className="Button Button--primary float-right" href="#" onClick={() => this.props.showModal({type: MODAL_ADD_PERSON})}>Add person</a>
-                        <h2 className="PageTitle">People</h2>
-                    </section>
-
+                <AdminPaneLayout
+                    title="People"
+                    buttonText="Add person"
+                    buttonAction={() => this.props.showModal({type: MODAL_ADD_PERSON})}
+                >
                     <section className="pb4">
                         <table className="ContentTable">
                             <thead>
@@ -441,7 +439,8 @@ export default class PeopleListingApp extends Component {
                             </tbody>
                         </table>
                     </section>
-                </div>
+                    { modal ? this.renderModal(modal.type, modal.details) : null }
+                </AdminPaneLayout>
             }
             </LoadingAndErrorWrapper>
         );

@@ -1,5 +1,7 @@
 import { createAction, createThunkAction, handleActions, combineReducers, AngularResourceProxy } from "metabase/lib/redux";
 
+import { canEditPermissions } from "metabase/lib/groups";
+
 const MetadataApi = new AngularResourceProxy("Metabase", ["db_list_with_tables"]);
 const PermissionsApi = new AngularResourceProxy("Permissions", ["groups", "graph", "updateGraph"]);
 
@@ -65,18 +67,11 @@ const revision = handleActions({
     [SAVE_PERMISSIONS]: { next: (state, { payload }) => payload.revision },
 }, null);
 
-const getGroupDisplayName = (name) =>
-    name === "Admin" ? "Administrator" :
-    name === "Default" ? "All Users" :
-    name;
-
 const groups = handleActions({
     [LOAD_GROUPS]: { next: (state, { payload }) =>
         payload && payload.map(group => ({
             ...group,
-            name: getGroupDisplayName(group.name),
-            // special case admin group to be non-editable
-            editable: group.name !== "Admin"
+            editable: canEditPermissions(group)
         }))
     },
 }, null);

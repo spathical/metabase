@@ -9,7 +9,7 @@ import cx from "classnames";
 
 const PermissionsEditor = ({ grid, onUpdatePermission, onSave, onCancel, isDirty, saveError, diff }) =>
     <LoadingAndErrorWrapper loading={!grid} className="flex-full flex flex-column">
-    { () =>
+    { () => // eslint-disable-line react/display-name
         <div className="flex-full flex flex-column">
             <PermissionsGrid
                 className="flex-full"

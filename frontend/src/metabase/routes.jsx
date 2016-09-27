@@ -195,7 +195,7 @@ export const getRoutes = (store) =>
                     <IndexRoute component={PeopleListingApp} />
                     <Route path="groups">
                         <IndexRoute component={GroupsListingApp} />
-                        <Route path=":groupID" component={GroupDetailApp} />
+                        <Route path=":groupId" component={GroupDetailApp} />
                     </Route>
                 </Route>
 

@@ -1,55 +1,31 @@
 import React, { Component } from "react";
-import { Link } from "react-router";
 
 import _ from "underscore";
 import cx from "classnames";
 
 import { AngularResourceProxy } from "metabase/lib/redux";
+import { isAdminGroup, isDefaultGroup, canEditMembership } from "metabase/lib/groups";
 
 import Icon from "metabase/components/Icon.jsx";
 import Input from "metabase/components/Input.jsx";
 import Popover from "metabase/components/Popover.jsx";
 import UserAvatar from "metabase/components/UserAvatar.jsx";
 
-import AdminContentTable from "./AdminContentTable.jsx";
-import Permissions from "./Permissions.jsx";
-import { LeftNavPane, LeftNavPaneItem, LeftNavPaneItemBack } from "metabase/components/LeftNavPane.jsx";
-
+import AdminContentTable from "metabase/components/AdminContentTable.jsx";
+import AdminPaneLayout from "metabase/components/AdminPaneLayout.jsx";
 
 const PermissionsAPI = new AngularResourceProxy("Permissions", ["createMembership", "deleteMembership"]);
 
-
-// ------------------------------------------------------------ Title & Nav ------------------------------------------------------------
-
-function AddMembersButton({ addUserVisible, onClick }) {
-    return (
-        <button className={cx("Button float-right", {"Button--primary": !addUserVisible})} disabled={addUserVisible} onClick={onClick}>
-            Add members
-        </button>
-    );
-}
-
-function TitleForDefault() {
-    return (
-        <section className="PageHeader clearfix">
-            <h2 className="PageTitle">
-                Default Group
-            </h2>
+const GroupDescription = ({ group }) =>
+    isDefaultGroup(group) ?
+        <div className="px2">
             <p>
-                All users belong to the Default Group and can't be removed from it. Setting permissions for this group is a great way to
+                All users belong to the {group.name} and can't be removed from it. Setting permissions for this group is a great way to
                 make sure you know what new Metabase users will be able to see.
             </p>
-        </section>
-    );
-}
-
-function TitleForAdmin({ addUserVisible, onAddUsersClicked }) {
-    return (
-        <section className="PageHeader clearfix">
-            <AddMembersButton addUserVisible={addUserVisible} onClick={onAddUsersClicked} />
-            <h2 className="PageTitle">
-                Admin
-            </h2>
+        </div>
+    : isAdminGroup(group) ?
+        <div className="px2">
             <p>
                 This is a special group whose members can see everything in the Metabase instance, and who can access and make changes to the
                 settings in the Admin Panel, including changing permissions! So, add people to this group with care.
@@ -57,39 +33,9 @@ function TitleForAdmin({ addUserVisible, onAddUsersClicked }) {
             <p>
                 To make sure you don't get locked out of Metabase, there always has to be at least one user in this group.
             </p>
-        </section>
-    );
-}
-
-function Title({ group, addUserVisible, onAddUsersClicked }) {
-    return group.name === "Default" ? (
-        <TitleForDefault />
-    ) : group.name === "Admin" ? (
-        <TitleForAdmin addUserVisible={addUserVisible} onAddUsersClicked={onAddUsersClicked} />
-    ) : (
-        <section className="PageHeader clearfix">
-            <AddMembersButton addUserVisible={addUserVisible} onClick={onAddUsersClicked} />
-            <h2 className="PageTitle">
-                {group.name}
-            </h2>
-        </section>
-    );
-}
-
-function NavPane({ groups, currentPath }) {
-    return (
-        <LeftNavPane>
-            <LeftNavPaneItemBack path="/admin/permissions/groups" />
-            {groups && groups.map((group) => {
-                 const path = "/admin/permissions/groups/" + group.id;
-                 return (
-                     <LeftNavPaneItem key={group.id} name={group.name} path={path} selected={currentPath.startsWith(path)} />
-                 );
-             })}
-        </LeftNavPane>
-    );
-}
-
+        </div>
+    :
+        null
 
 // ------------------------------------------------------------ Add User Row / Autocomplete ------------------------------------------------------------
 
@@ -203,76 +149,9 @@ function MembersTable({ group, members, userSuggestions, showAddUser, text, sele
     );
 }
 
-
-// ------------------------------------------------------------ Databases Table ------------------------------------------------------------
-
-function DatabasesListItemSchemasListItem({ schema }) {
-    return (
-        <li className="my1">
-            <Icon name="table2" size={16} className="mr1 text-grey-1" /> {schema.name}
-        </li>
-    );
-}
-
-function DatabasesListItemSchemasList({ schemas }) {
-    return (
-        <ul>
-            {schemas && schemas.map((schema, index) =>
-                <DatabasesListItemSchemasListItem key={index} schema={schema} />
-             )}
-        </ul>
-    );
-}
-
-function DatabasesListItem({ database, group }) {
-    const unrestricted = database.access_type === "unrestricted";
-    const allSchemas = database.access_type === "all_schemas";
-    const someSchemas = database.access_type === "some_schemas";
-
-    return (
-        <div className="my4 py1">
-            <Icon className="Icon text-grey-1" name="database" size={16} />
-            <span className="mx2">
-                {database.name ? database.name.toUpperCase() : null}
-            </span>
-            <div className="mt3 ml4">
-                <div className="text-bold">
-                    {unrestricted ? "Unrestricted" :
-                     allSchemas   ? "All schemas"  :
-                     someSchemas  ? "Some schemas" : "No permissions"}
-                    <Link to={"/admin/permissions/databases/" + database.database_id + "/groups/" + group.id}
-                          className="no-decoration mx2 link"
-                    >
-                        Change Settings
-                    </Link>
-                </div>
-                {someSchemas ? (
-                     <DatabasesListItemSchemasList schemas={database.schemas} />
-                ) : null}
-            </div>
-        </div>
-    );
-}
-
-function DatabasesList({ group, databases }) {
-    return (
-        <div className="mt4">
-            <h2>
-                What {group.name} Can See
-            </h2>
-            {databases && databases.map((database, index) =>
-                <DatabasesListItem key={index} database={database} group={group} />
-             )}
-        </div>
-    );
-}
-
-
 // ------------------------------------------------------------ Logic ------------------------------------------------------------
 
 function filterUsers(users, text) {
-    console.log('filterUsers(', users, text, ')');
-
     if (!text || !text.length) return users;
 
     text = text.toLowerCase();
@@ -398,7 +277,7 @@ export default class GroupDetail extends Component {
     render() {
         // users = array of all users for purposes of adding new users to group
         // [group.]members = array of users currently in the group
-        let { location: { pathname }, group, groups, users } = this.props;
+        let { group, groups, users } = this.props;
         group = group || {};
         groups = groups || [];
         users = users || [];
@@ -407,28 +286,29 @@ export default class GroupDetail extends Component {
         const userSuggestions = this.state.text && this.state.text.length ? this.state.userSuggestions : users;
 
         return (
-            <Permissions>
-                <Title group={group} addUserVisible={this.state.addUserVisible}
-                       onAddUsersClicked={this.onAddUsersClicked.bind(this)}
+            <AdminPaneLayout
+                title={group.name}
+                buttonText="Add members"
+                buttonAction={canEditMembership(group) ? this.onAddUsersClicked.bind(this) : null}
+                buttonDisabled={this.state.addUserVisible}
+            >
+                <GroupDescription group={group} />
+                <MembersTable
+                    group={group}
+                    members={members}
+                    userSuggestions={userSuggestions}
+                    showAddUser={this.state.addUserVisible}
+                    text={this.state.text || ""}
+                    selectedUser={this.state.selectedUser}
+                    onAddUserCancel={this.onAddUserCanceled.bind(this)}
+                    onAddUserDone={this.onAddUserDone.bind(this)}
+                    onAddUserTextChange={this.onAddUserTextChange.bind(this)}
+                    onUserSuggestionAccepted={this.onUserSuggestionAccepted.bind(this)}
+                    onAddUserUpPressed={this.onAddUserUpPressed.bind(this)}
+                    onAddUserDownPressed={this.onAddUserDownPressed.bind(this)}
+                    onRemoveUserClicked={this.onRemoveUserClicked.bind(this)}
                 />
-                <MembersTable group={group}
-                              members={members}
-                              userSuggestions={userSuggestions}
-                              showAddUser={this.state.addUserVisible}
-                              text={this.state.text || ""}
-                              selectedUser={this.state.selectedUser}
-                              onAddUserCancel={this.onAddUserCanceled.bind(this)}
-                              onAddUserDone={this.onAddUserDone.bind(this)}
-                              onAddUserTextChange={this.onAddUserTextChange.bind(this)}
-                              onUserSuggestionAccepted={this.onUserSuggestionAccepted.bind(this)}
-                              onAddUserUpPressed={this.onAddUserUpPressed.bind(this)}
-                              onAddUserDownPressed={this.onAddUserDownPressed.bind(this)}
-                              onRemoveUserClicked={this.onRemoveUserClicked.bind(this)}
-                />
-                { group.name !== "Admin" ? (
-                      <DatabasesList group={group} databases={group.databases} />
-                ) : null}
-            </Permissions>
+            </AdminPaneLayout>
         );
     }
 }
