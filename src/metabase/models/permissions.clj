@@ -265,7 +265,7 @@
                               [:like :object (str path "%")]]
                              other-conditions)}]
     (when-let [revoked (db/select-field :object Permissions where)]
-      (log/info (u/format-color 'red "Revoking permissions for group %d: %s" group-id revoked))
+      (log/debug (u/format-color 'red "Revoking permissions for group %d: %s" group-id revoked))
       (db/cascade-delete! Permissions where))))
 
 (defn- revoke-permissions!
@@ -279,7 +279,7 @@
    (grant-permissions! group-id (apply object-path db-id schema more)))
   ([group-id path]
    (try
-     (log/info (u/format-color 'green "Granting permissions for group %d: %s" group-id path))
+     (log/debug (u/format-color 'green "Granting permissions for group %d: %s" group-id path))
      (db/insert! Permissions
        :group_id group-id
        :object   path)
@@ -288,10 +288,14 @@
        (log/error (u/format-color 'red "Failed to grant permissions: %s" (.getMessage e)))))))
 
 
-(defn- revoke-native-permissions!          [group-id database-id] (delete-related-permissions! group-id (native-readwrite-path database-id)))
-(defn- grant-native-readwrite-permissions! [group-id database-id] (grant-permissions!          group-id (native-readwrite-path database-id)))
-(defn- grant-native-read-permissions!      [group-id database-id] (grant-permissions!          group-id (native-read-path      database-id)))
+(defn- revoke-native-permissions!     [group-id database-id] (delete-related-permissions! group-id (native-readwrite-path database-id)))
+(defn- grant-native-read-permissions! [group-id database-id] (grant-permissions!          group-id (native-read-path      database-id)))
 
+(defn grant-native-readwrite-permissions!
+  "Grant full readwrite permissions for group with GROUP-ID to database with DATABASE-ID."
+  [group-id database-id]
+  {:pre [(integer? group-id) (integer? database-id)]}
+  (grant-permissions! group-id (native-readwrite-path database-id)))
 
 (defn- revoke-db-permissions!
   "Remove all permissions entires for a DB and any child objects.
@@ -301,11 +305,18 @@
     [:not= :object (native-readwrite-path database-id)]
     [:not= :object (native-read-path database-id)]))
 
-(defn grant-full-db-permissions!
+(defn grant-permissions-for-all-schemas!
   "Grant full permissions for all schemas belonging to this database.
    This does *not* grant native permissions; use `grant-native-readwrite-permissions!` to do that."
   [group-id database-id]
+  {:pre [(integer? group-id) (integer? database-id)]}
   (grant-permissions! group-id (all-schemas-path database-id)))
+
+(defn grant-full-db-permissions!
+  "Grant full access to the database, including all schemas and readwrite native access."
+  [group-id database-id]
+  {:pre [(integer? group-id) (integer? database-id)]}
+  (grant-permissions! group-id (object-path database-id)))
 
 
 ;;; ---------------------------------------- Graph Updating Fns ----------------------------------------
@@ -337,7 +348,7 @@
   (when-let [schemas (:schemas new-db-perms)]
     (revoke-db-permissions! group-id db-id)
     (cond
-      (= schemas :all)  (grant-full-db-permissions! group-id db-id)
+      (= schemas :all)  (grant-permissions-for-all-schemas! group-id db-id)
       (= schemas :none) nil
       (map? schemas)    (doseq [schema (keys schemas)]
                           (update-schema-perms! group-id db-id schema (get-in new-db-perms [:schemas schema]))))))
@@ -378,7 +389,7 @@
    (let [old-graph (graph)
          [old new] (data/diff (:groups old-graph) (:groups new-graph))]
      (when (or (seq old) (seq new))
-       (log/info (format "Changing permissions: 🔏\nFROM:\n%s\nTO:\n%s"
+       (log/debug (format "Changing permissions: 🔏\nFROM:\n%s\nTO:\n%s"
                          (u/pprint-to-str 'magenta old)
                          (u/pprint-to-str 'blue new)))
        (check-revision-numbers old-graph new-graph)

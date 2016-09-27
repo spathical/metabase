@@ -6,13 +6,24 @@
 
 (i/defentity PermissionsGroupMembership :permissions_group_membership)
 
-(defn- check-not-default-or-metabot-group
-  "Throw an Exception if we're trying to add or remove a user to the MetaBot or Default groups."
+(defn- check-not-metabot-group
+  "Throw an Exception if we're trying to add or remove a user to the MetaBot group."
   [group-id]
-  (doseq [magic-group [(group/metabot)
-                       (group/default)]]
-    (when (= group-id (:id magic-group))
-      (throw (ex-info (format "You cannot add or remove users to/from the '%s' group." (:name magic-group))
+  (when (= group-id (:id (group/metabot)))
+    (throw (ex-info "You cannot add or remove users to/from the 'MetaBot' group."
+                    {:status-code 400}))))
+
+(def ^:dynamic ^Boolean *allow-changing-default-group-members*
+  "Should we allow people to be added to or removed from the Default permissions group?
+   By default, this is `false`, but enable it when adding or deleting users."
+  false)
+
+(defn- check-not-default-group
+  "Throw an Exception if we're trying to add or remove a user to the Default group."
+  [group-id]
+  (when (= group-id (:id (group/default)))
+    (when-not *allow-changing-default-group-members*
+      (throw (ex-info "You cannot add or remove users to/from the 'Default' group."
                {:status-code 400})))))
 
 (defn- check-not-last-admin []
@@ -23,7 +34,8 @@
              {:status-code 400}))))
 
 (defn- pre-cascade-delete [{:keys [group_id user_id]}]
-  (check-not-default-or-metabot-group group_id)
+  (check-not-metabot-group group_id)
+  (check-not-default-group group_id)
   ;; Otherwise if this is the Admin group...
   (when (= group_id (:id (group/admin)))
     ;; ...and this is the last membership throw an exception
@@ -34,7 +46,8 @@
 
 (defn- pre-insert [{:keys [group_id], :as membership}]
   (u/prog1 membership
-    (check-not-default-or-metabot-group group_id)))
+    (check-not-metabot-group group_id)
+    (check-not-default-group group_id)))
 
 (defn- post-insert [{:keys [group_id user_id], :as membership}]
   (u/prog1 membership
