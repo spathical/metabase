@@ -13,10 +13,8 @@ import ModalWithTrigger from "metabase/components/ModalWithTrigger.jsx";
 import PopoverWithTrigger from "metabase/components/PopoverWithTrigger.jsx";
 import UserAvatar from "metabase/components/UserAvatar.jsx";
 
-import AdminContentTable from "./AdminContentTable.jsx";
-import Permissions from "./Permissions.jsx";
-import TopLevelLeftNavPane from "./TopLevelLeftNavPane.jsx";
-
+import AdminContentTable from "metabase/components/AdminContentTable.jsx";
+import AdminPaneLayout from "metabase/components/AdminPaneLayout.jsx";
 
 const PermissionsAPI = new AngularResourceProxy("Permissions", ["createGroup", "deleteGroup", "updateGroup"]);
 
@@ -287,25 +285,30 @@ export default class GroupsListing extends Component {
     }
 
     render() {
-        let { location: { pathname }, groups } = this.props;
+        let { groups } = this.props;
         groups = this.state.groups || groups || [];
 
         return (
-            <Permissions
-                         rightTitleButtonTitle="Create a group"
-                         rightTitleButtonAction={this.state.showAddGroupRow ? null : this.onCreateAGroupButtonClicked.bind(this)}
+            <AdminPaneLayout
+                title="Groups"
+                buttonText="Create a group"
+                buttonAction={this.state.showAddGroupRow ? null : this.onCreateAGroupButtonClicked.bind(this)}
             >
-                <GroupsTable groups={groups} text={this.state.text} showAddGroupRow={this.state.showAddGroupRow} groupBeingEdited={this.state.groupBeingEdited}
-                             onAddGroupCanceled={this.onAddGroupCanceled.bind(this)}
-                             onAddGroupCreateButtonClicked={this.onAddGroupCreateButtonClicked.bind(this)}
-                             onAddGroupTextChanged={this.onAddGroupTextChanged.bind(this)}
-                             onEditGroupClicked={this.onEditGroupClicked.bind(this)}
-                             onEditGroupTextChange={this.onEditGroupTextChange.bind(this)}
-                             onEditGroupCancelClicked={this.onEditGroupCancelClicked.bind(this)}
-                             onEditGroupDoneClicked={this.onEditGroupDoneClicked.bind(this)}
-                             onDeleteGroupClicked={this.onDeleteGroupClicked.bind(this)}
+                <GroupsTable
+                    groups={groups}
+                    text={this.state.text}
+                    showAddGroupRow={this.state.showAddGroupRow}
+                    groupBeingEdited={this.state.groupBeingEdited}
+                    onAddGroupCanceled={this.onAddGroupCanceled.bind(this)}
+                    onAddGroupCreateButtonClicked={this.onAddGroupCreateButtonClicked.bind(this)}
+                    onAddGroupTextChanged={this.onAddGroupTextChanged.bind(this)}
+                    onEditGroupClicked={this.onEditGroupClicked.bind(this)}
+                    onEditGroupTextChange={this.onEditGroupTextChange.bind(this)}
+                    onEditGroupCancelClicked={this.onEditGroupCancelClicked.bind(this)}
+                    onEditGroupDoneClicked={this.onEditGroupDoneClicked.bind(this)}
+                    onDeleteGroupClicked={this.onDeleteGroupClicked.bind(this)}
                 />
-            </Permissions>
+            </AdminPaneLayout>
         );
     }
 }

@@ -23,17 +23,15 @@ const mapDispatchToProps = {
 @connect(mapStateToProps, mapDispatchToProps)
 export default class GroupDetailApp extends Component {
     async componentWillMount() {
-        await this.props.loadGroups();
-        await this.props.fetchUsers();
+        this.props.loadGroups();
+        this.props.fetchUsers();
+        this.props.loadGroupDetails(this.props.params.groupId);
     }
 
     async componentWillReceiveProps(nextProps) {
-        const groupID = this.props.routeParams.groupID;
-        const nextGroupID = nextProps.routeParams.groupID;
-
-        if (this.props.group && groupID === nextGroupID) return;
-
-        await this.props.loadGroupDetails(nextGroupID);
+        if (nextProps.params.groupId !== this.props.params.groupId) {
+            this.props.loadGroupDetails(nextProps.params.groupId);
+        }
     }
 
     render() {
