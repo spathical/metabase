@@ -238,7 +238,7 @@
             perms/*allow-root-entries* true]
     (u/ignore-exceptions
       (db/insert! Permissions
-        :group_id (perm-group/admin)
+        :group_id (:id (perm-group/admin))
         :object   "/"))))
 
 ;; add existing databases to default permissions groups. default and metabot groups have entries for each individual DB
