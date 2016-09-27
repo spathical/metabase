@@ -5,13 +5,13 @@
                       [util :as u])
             [metabase.models.common :as common]))
 
-;;; permissions implementations
+;;; ------------------------------------------------------------ OLD Permissions System ------------------------------------------------------------
 
 (defn superuser?
   "Is `*current-user*` is a superuser? Ignores args.
    Intended for use as an implementation of `can-read?` and/or `can-write?`."
   [& _]
-  (:is_superuser @@(resolve 'metabase.api.common/*current-user*)))
+  @(resolve 'metabase.api.common/*is-superuser?*))
 
 (defn- creator?
   "Did the current user create this object?"
@@ -36,6 +36,9 @@
 (def ^{:arglists '([obj] [entity id])} publicly-writeable?
   "Implementation of `can-write?` that returns `true` if `*current-user*` is a superuser, the person who created OBJ, or if OBJ has readwrite `:public_perms`."
   (partial publicly-? common/perms-readwrite))
+
+
+;;; ------------------------------------------------------------ Entity ------------------------------------------------------------
 
 (defprotocol IEntity
   "Methods model classes should implement; all except for `can-read?` and `can-write?` have default implementations in `IEntityDefaults`.
@@ -109,7 +112,11 @@
      *  `:keyword` calls `u/keyword->qualified-name` before going into the DB, and `keyword` when coming out
      *  `:clob` converts clobs to Strings (via `metabase.util/jdbc-clob->str`) when coming out
 
-       (types [_] {:cards :json}) ; encode `:cards` as JSON when stored in the DB"))
+       (types [_] {:cards :json}) ; encode `:cards` as JSON when stored in the DB")
+
+  (perms-objects-set [this, ^clojure.lang.Keyword read-or-write]
+    "Return a set of permissions object paths that a user must have access to in order to access this object. This should be something like #{\"/db/1/schema/public/table/20/\"}.
+     READ-OR-WRITE will be either `:read` or `:write`, depending on which permissions set we're fetching (these will be the same sets for most models; they can ignore this param)."))
 
 
 (def ^:private type-fns
@@ -181,19 +188,23 @@
     (post-select <>)
     (map-> entity <>)))
 
+(defn- throw-no-implementation-exception [method-name]
+  (fn [this & _] (throw (UnsupportedOperationException. (format "No implementation of %s for %s; please provide one." method-name (class this))))))
+
 (def IEntityDefaults
   "Default implementations for `IEntity` methods."
   {:default-fields     (constantly nil)
    :timestamped?       (constantly false)
    :hydration-keys     (constantly nil)
    :types              (constantly nil)
-   :can-read?          (fn [this & _] (throw (UnsupportedOperationException. (format "No implementation of can-read? for %s; please provide one."  (class this)))))
-   :can-write?         (fn [this & _] (throw (UnsupportedOperationException. (format "No implementation of can-write? for %s; please provide one." (class this)))))
+   :can-read?          (throw-no-implementation-exception "can-read?")
+   :can-write?         (throw-no-implementation-exception "can-write?")
    :pre-insert         identity
    :post-insert        identity
    :pre-update         identity
    :post-select        identity
-   :pre-cascade-delete (constantly nil)})
+   :pre-cascade-delete (constantly nil)
+   :perms-objects-set  (throw-no-implementation-exception "perms-objects-set")})
 
 (defn- invoke-entity
   "Fetch an object with a specific ID or all objects of type ENTITY from the DB.
@@ -315,3 +326,32 @@
          (~map->instance {:table   ~table-name
                           :name    ~(name entity)
                           ::entity true})))))
+
+
+;;; ------------------------------------------------------------ New Permissions Stuff ------------------------------------------------------------
+
+(defn- current-user-permissions-set []
+  @@(resolve 'metabase.api.common/*current-user-permissions-set*))
+
+(defn- current-user-has-root-permissions? ^Boolean []
+  (contains? (current-user-permissions-set) "/"))
+
+(defn current-user-has-full-permissions-for-set?
+  "Implementation of `can-read?`/`can-write?` for the new permissions system.
+   `true` if the current user has permissions for the paths returned by its implementation of `perms-objects-set`.
+   (READ-OR-WRITE is either `:read` or `:write` and passed to `perms-objects-set`; you'll usually want to partially bind it in the implementation map)."
+  (^Boolean [read-or-write entity object-id]
+   (or (current-user-has-root-permissions?)
+       (current-user-has-full-permissions-for-set? read-or-write (entity object-id))))
+  (^Boolean [read-or-write object]
+   ((resolve 'metabase.models.permissions/set-has-full-permissions-for-set?) (current-user-permissions-set) (perms-objects-set object read-or-write))))
+
+(defn current-user-has-full-permissions-for-set-and-is-superuser?
+  "Implementation of `can-read?`/`can-write?` for the new permissions system.
+   This is the same as `current-user-has-full-permissions-for-set?` but has the additional requirement that the current user be a superuser."
+  (^Boolean [read-or-write entity object-id]
+   (and (superuser?)
+        (current-user-has-full-permissions-for-set? read-or-write entity object-id)))
+  (^Boolean [read-or-write object]
+   (and (superuser?)
+        (current-user-has-full-permissions-for-set? read-or-write object))))

@@ -47,40 +47,16 @@
        :read  perms/native-read-path
        :write perms/native-readwrite-path) database-id)})
 
-(defn- permissions-paths-set
+(defn- perms-objects-set
   "Return a set of required permissions object paths for CARD.
    Optionally specify whether you want `:read` or `:write` permissions; default is `:read`.
    (`:write` permissions only affects native queries)."
-  ([card]
-   (permissions-paths-set :read card))
-  ([read-or-write {{query-type :type, :as query} :dataset_query}]
-   (cond
-     (= query {})                     #{}
-     (= (keyword query-type) :native) (permissions-path-set:native read-or-write query)
-     (= (keyword query-type) :query)  (permissions-path-set:mbql query)
-     :else                            (throw (Exception. (str "Invalid query type: " query-type))))))
-
-
-(defn has-permissions?
-  "Does PERMISSIONS-SET grant access to all the objects referenced by CARD?
-   Optionally specify whether you want `:read` or `:write` permissions; default is `:read`."
-  ^Boolean
-  ([permissions-set card]
-   (has-permissions? :read permissions-set card))
-  ([read-or-write permissions-set card]
-   ;; we know that someone with root permissions can always access everything so skip the more complicated checking logic in that case
-   ;; TODO - it seems like we could also optimize a bit and check if full permissions for the Card's DB were present so we didn't have to expand/resolve in that case
-   (or (contains? permissions-set "/")
-       (perms/set-has-full-permissions-for-set? permissions-set (permissions-paths-set read-or-write card)))))
-
-(defn current-user-has-permissions?
-  "Does the current user have READ-OR-WRITE permissions for CARD?"
-  (^Boolean [read-or-write _ card-id]
-   ;; as above optimize away the check if we have root permissions
-   (or (contains? @*current-user-permissions-set* "/")
-       (current-user-has-permissions? read-or-write (Card card-id))))
-  (^Boolean [read-or-write card]
-   (has-permissions? read-or-write @*current-user-permissions-set* card)))
+  [{{query-type :type, :as query} :dataset_query} read-or-write]
+  (cond
+    (= query {})                     #{}
+    (= (keyword query-type) :native) (permissions-path-set:native read-or-write query)
+    (= (keyword query-type) :query)  (permissions-path-set:mbql query)
+    :else                            (throw (Exception. (str "Invalid query type: " query-type)))))
 
 
 ;;; ------------------------------------------------------------ Dependencies ------------------------------------------------------------
@@ -144,11 +120,12 @@
          {:hydration-keys     (constantly [:card])
           :types              (constantly {:display :keyword, :query_type :keyword, :dataset_query :json, :visualization_settings :json, :description :clob})
           :timestamped?       (constantly true)
-          :can-read?          (partial current-user-has-permissions? :read)
-          :can-write?         (partial current-user-has-permissions? :write)
+          :can-read?          (partial i/current-user-has-full-permissions-for-set? :read)
+          :can-write?         (partial i/current-user-has-full-permissions-for-set? :write)
           :pre-update         populate-query-fields
           :pre-insert         (comp populate-query-fields pre-insert)
-          :pre-cascade-delete pre-cascade-delete})
+          :pre-cascade-delete pre-cascade-delete
+          :perms-objects-set  perms-objects-set})
 
   revision/IRevisioned
   (assoc revision/IRevisionedDefaults
