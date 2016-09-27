@@ -15,19 +15,23 @@
 ;;; ---------------------------------------- check that we can get the magic permissions groups through the helper functions ----------------------------------------
 (expect PermissionsGroupInstance (perm-group/default))
 (expect PermissionsGroupInstance (perm-group/admin))
+(expect PermissionsGroupInstance (perm-group/metabot))
 
 (expect "Default" (:name (perm-group/default)))
 (expect "Admin"   (:name (perm-group/admin)))
+(expect "MetaBot" (:name (perm-group/metabot)))
 
 
 ;;; make sure we're not allowed to delete the magic groups
 (expect Exception (db/cascade-delete! PermissionsGroup :id (:id (perm-group/default))))
 (expect Exception (db/cascade-delete! PermissionsGroup :id (:id (perm-group/admin))))
+(expect Exception (db/cascade-delete! PermissionsGroup :id (:id (perm-group/metabot))))
 
 
 ;;; make sure we're not allowed to edit the magic groups
 (expect Exception (db/update! PermissionsGroup (:id (perm-group/default)) :name "Cool People"))
 (expect Exception (db/update! PermissionsGroup (:id (perm-group/admin))   :name "Cool People"))
+(expect Exception (db/update! PermissionsGroup (:id (perm-group/metabot)) :name "Cool People"))
 
 
 ;;; ---------------------------------------- newly created users should get added to the appropriate magic groups ----------------------------------------
@@ -43,6 +47,13 @@
     (db/exists? PermissionsGroupMembership
       :user_id  user-id
       :group_id (:id (perm-group/admin)))))
+
+(expect
+  false
+  (tu/with-temp User [{user-id :id}]
+    (db/exists? PermissionsGroupMembership
+      :user_id  user-id
+      :group_id (:id (perm-group/metabot)))))
 
 (expect
   (do
@@ -78,6 +89,10 @@
 (expect
   (tu/with-temp Database [{database-id :id}]
     (group-has-full-access? (:id (perm-group/admin)) (perms/object-path database-id))))
+
+(expect
+  (tu/with-temp Database [{database-id :id}]
+    (group-has-full-access? (:id (perm-group/metabot)) (perms/object-path database-id))))
 
 
 

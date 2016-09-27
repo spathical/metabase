@@ -484,7 +484,8 @@
   (u/prog1 (binding [hformat/*subquery?* false]
              (hsql/format honeysql-form, :quoting (quoting-style), :allow-dashed-names? true))
     (when *debug-print-queries*
-      (println (u/pprint-to-str 'blue honeysql-form) "\n" (u/format-color 'green (format-sql (first <>)))))
+      (println (u/pprint-to-str 'blue honeysql-form)
+               (u/format-color 'green "\n%s\n%s" (format-sql (first <>)) (rest <>))))
     (when-not *disable-db-logging*
       (log/debug (str "DB Call: " (first <>)))
       (when *call-count*

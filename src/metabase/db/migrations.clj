@@ -14,7 +14,7 @@
                              [interface :refer [defentity]]
                              [permissions :refer [Permissions], :as perms]
                              [permissions-group :as perm-group]
-                             [permissions-group-membership :refer [PermissionsGroupMembership]]
+                             [permissions-group-membership :refer [PermissionsGroupMembership], :as perm-membership]
                              [raw-column :refer [RawColumn]]
                              [raw-table :refer [RawTable]]
                              [table :refer [Table] :as table]
@@ -221,14 +221,15 @@
 (defmigration add-users-to-default-permissions-groups
   (let [{default-group-id :id} (perm-group/default)
         {admin-group-id :id}   (perm-group/admin)]
-    (doseq [{user-id :id, superuser? :is_superuser} (db/select [User :id :is_superuser])]
-      (db/insert! PermissionsGroupMembership
-        :user_id  user-id
-        :group_id default-group-id)
-      (when superuser?
+    (binding [perm-membership/*allow-changing-default-group-members* true]
+      (doseq [{user-id :id, superuser? :is_superuser} (db/select [User :id :is_superuser])]
         (db/insert! PermissionsGroupMembership
           :user_id  user-id
-          :group_id admin-group-id)))))
+          :group_id default-group-id)
+        (when superuser?
+          (db/insert! PermissionsGroupMembership
+            :user_id  user-id
+            :group_id admin-group-id))))))
 
 ;; add existing databases to default permissions groups.
 (defmigration add-databases-to-magic-permissions-groups
