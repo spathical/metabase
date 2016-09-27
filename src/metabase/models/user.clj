@@ -10,7 +10,7 @@
             [metabase.util :as u]
             [metabase.models.permissions-group :as group]))
 
-;; ## Enity + DB Multimethods
+;;; ------------------------------------------------------------ Entity & Lifecycle ------------------------------------------------------------
 
 (i/defentity User :core_user)
 
@@ -98,7 +98,7 @@
           :pre-cascade-delete pre-cascade-delete}))
 
 
-;; ## Related Functions
+;; ------------------------------------------------------------ Helper Fns ------------------------------------------------------------
 
 (declare form-password-reset-url
          set-user-password-reset-token!)
@@ -153,7 +153,22 @@
   {:pre [(string? reset-token)]}
   (str (setting/get :-site-url) "/auth/reset_password/" reset-token))
 
+;; TODO - why is this in `metabase.models.user`?
 (defn instance-created-at
   "The date this Metabase instance was created.  We use the `:date_joined` of the first `User` to determine this."
   ^java.sql.Timestamp []
   (db/select-one-field :date_joined User, {:order-by [[:date_joined :asc]]}))
+
+
+
+;;; ------------------------------------------------------------ Permissions ------------------------------------------------------------
+
+(defn permissions-set
+  "Return a set of all permissions object paths that USER has been granted access to."
+  [{user-id :id}]
+  (when-let [paths (seq (map :object (db/query {:select    [:p.object]
+                                                :from      [[:permissions_group_membership :pgm]]
+                                                :left-join [[:permissions_group :pg] [:= :pgm.group_id :pg.id]
+                                                            [:permissions :p]        [:= :p.group_id :pgm.id]]
+                                                :where     [:= :user_id user-id]})))]
+    (set paths)))

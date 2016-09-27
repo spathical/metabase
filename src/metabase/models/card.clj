@@ -6,9 +6,12 @@
                              [dependency :as dependency]
                              [interface :as i]
                              [label :refer [Label]]
+                             [permissions :as perms]
                              [revision :as revision])
             [metabase.query :as q]
+            [metabase.query-processor.expand :as expand]
             [metabase.query-processor.permissions :as qp-perms]
+            [metabase.query-processor.resolve :as resolve]
             [metabase.util :as u]))
 
 (i/defentity Card :report_card)
@@ -98,3 +101,18 @@
 
   dependency/IDependent
   {:dependencies card-dependencies})
+
+
+;;; ------------------------------------------------------------ Permissions Checking ------------------------------------------------------------
+
+(defn- permissions-paths-set
+  "Return a set of required permissions object paths for CARD."
+  [{{database-id :database, query-type :type, :as query} :dataset_query}]
+  (if (= (keyword query-type) :native)
+    #{(perms/native-read-path database-id)}
+    (let [{{:keys [source-table join-tables]} :query} (resolve/resolve (expand/expand query))]
+      (set (for [table (cons source-table join-tables)]
+             (perms/object-path database-id (:schema table) (:id table)))))))
+
+(defn- has-permissions? [permissions-set card]
+  (perms/set-has-full-permissions-for-set? permissions-set (permissions-paths-set card)))

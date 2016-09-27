@@ -3,7 +3,7 @@
   (:require [clojure.tools.logging :as log]
             [honeysql.core :as hsql]
             [metabase.db :as db]
-            [metabase.models.permissions :as permissions]
+            [metabase.models.permissions :as perms]
             [metabase.util :as u]
             [metabase.util.honeysql-extensions :as hx]))
 
@@ -32,7 +32,7 @@
   (throw (Exception. ^String (apply format format-str format-args))))
 
 (defn- permissions-for-object [user-id object-path]
-  {:pre [(integer? user-id) (permissions/valid-object-path? object-path)]}
+  {:pre [(integer? user-id) (perms/valid-object-path? object-path)]}
   (u/prog1 (db/select-one 'Permissions
              {:where [:and [:in :group_id (db/select-field :group_id 'PermissionsGroupMembership :user_id user-id)]
                       [:like object-path (hx/concat :object (hx/literal "%"))]]})
@@ -43,12 +43,12 @@
 ;;; ------------------------------------------------------------ Permissions for MBQL queries ------------------------------------------------------------
 
 ;; TODO - the performance of this could be improved a bit by doing a join or even caching results
-(defn- user-can-run-query-referencing-table?
+(defn user-can-run-query-referencing-table?
   "Does User with USER-ID have appropriate permissions to run an MBQL query referencing table with TABLE-ID?"
   [user-id table-id]
   {:pre [(integer? user-id) (integer? table-id)]}
   (let [{:keys [schema database-id]} (db/select-one ['Table [:db_id :database-id] :schema] :id table-id)]
-    (permissions-for-object user-id (str "/db/" database-id "/schema/" schema "/table/" table-id "/"))))
+    (permissions-for-object user-id (perms/object-path database-id schema table-id))))
 
 
 (defn- table-id [source-or-join-table]
@@ -69,12 +69,12 @@
 ;;; ------------------------------------------------------------ Permissions for Native Queries ------------------------------------------------------------
 
 (defn throw-exception-if-user-cannot-run-native-query-referencing-db
-  "Throw an exception if User with USER-ID doesn't have native query permissions for DATABASE."
+  "Throw an exception if User with USER-ID doesn't have native query *read* permissions for DATABASE."
   {:arglists '([user-id database])}
   [user-id {database-id :id, database-name :name}]
   {:pre [(integer? database-id)]}
   (log-permissions-debug-message 'yellow "Can User %d run native queries against Database %d (%s)?" user-id database-id database-name)
-  (or (permissions-for-object user-id (str "/db/" database-id "/native/"))
+  (or (permissions-for-object user-id (perms/native-read-path database-id))
       (throw-permissions-exception "You do not have permissions to run native queries against database '%s'." database-name)))
 
 

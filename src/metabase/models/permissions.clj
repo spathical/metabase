@@ -80,22 +80,66 @@
   (^String [database-id schema-name]          (str (object-path database-id) "schema/" schema-name "/"))
   (^String [database-id schema-name table-id] (str (object-path database-id schema-name) "table/" table-id "/" )))
 
-(defn- native-readwrite-path
+(defn native-readwrite-path
   "Return the native query read/write permissions path for a database.
    This grants you permissions to run arbitary native queries."
   ^String [database-id]
   (str (object-path database-id) "native/"))
 
-(defn- native-read-path
+(defn native-read-path
   "Return the native query *read* permissions path for a database.
    This grants you permissions to view the results of an *existing* native query, i.e. view native Cards created by others."
   ^String [database-id]
   (str (object-path database-id) "native/read/"))
 
-(defn- all-schemas-path
+(defn all-schemas-path
   "Return the permissions path for a database that grants full access to all schemas."
   ^String [database-id]
   (str (object-path database-id) "schema/"))
+
+
+;;; ---------------------------------------- Permissions Checking Fns ----------------------------------------
+
+(defn is-permissions-for-object?
+  "Does PERMISSIONS-PATH grant *full* access for object PATH?"
+  [path permissions-path]
+  (str/starts-with? path permissions-path))
+
+(defn- is-partial-permissions-for-object?
+  "Does PERMISSIONS-PATH grant access for a descendant of object PATH?"
+  [path permissions-path]
+  (str/starts-with? permissions-path path))
+
+
+(defn is-permissions-set?
+  "Is PERMISSIONS-SET a valid set of permissions object paths?"
+  ^Boolean [permissions-set]
+  (and (set? permissions-set)
+       (every? (fn [path]
+                 (or (= path "/")
+                     (valid-object-path? path)))
+               permissions-set)))
+
+
+(defn- set-has-full-permissions?
+  "Does PERMISSIONS-SET grant *full* access to object with PATH?"
+  ^Boolean [permissions-set path]
+  (boolean (some (partial is-permissions-for-object? path) permissions-set)))
+
+(defn- set-has-partial-permissions?
+  "Does PERMISSIONS-SET grant access to *some* descendants of object with PATH?"
+  ^Boolean [permissions-set path]
+  (boolean (some (partial is-partial-permissions-for-object? path) permissions-set)))
+
+
+(defn ^Boolean set-has-full-permissions-for-set?
+  "Do the permissions paths in PERMISSIONS-SET grant access to all the object paths in OBJECT-PATHS-SET?"
+  [permissions-set object-paths-set]
+  {:pre [(is-permissions-set? permissions-set) (is-permissions-set? object-paths-set)]}
+  (u/prog1 (every? (partial set-has-full-permissions? permissions-set)
+                   object-paths-set)
+    ;; NOCOMMIT
+    (println (format "set-has-full-permissions-for-set?\n%s\nfor %s\n-> %s" permissions-set object-paths-set <>))))
 
 
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -181,24 +225,13 @@
 ;;; |                                                                     GRAPH FETCH                                                                      |
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-(defn- is-permissions-for-object?
-  "Does PERMISSIONS-PATH grant *full* access for PATH?"
-  [path permissions-path]
-  (str/starts-with? path permissions-path))
-
-(defn- is-partial-permissions-for-object?
-  "Does PERMISSIONS-PATH grant access for a descendant of PATH?"
-  [path permissions-path]
-  (str/starts-with? permissions-path path))
-
 (defn- permissions-for-path
   "Given a PERMISSIONS-SET of all allowed permissions paths for a Group, return the corresponding permissions status for an object with PATH."
   [permissions-set path]
   (u/prog1 (cond
-             (some (partial is-permissions-for-object? path) permissions-set)         :all
-             (some (partial is-partial-permissions-for-object? path) permissions-set) :some
-             :else                                                                    :none)))
-
+             (set-has-full-permissions? permissions-set path)    :all
+             (set-has-partial-permissions? permissions-set path) :some
+             :else                                               :none)))
 
 (defn- table->native-readwrite-path [table] (native-readwrite-path (:db_id table)))
 (defn- table->schema-object-path    [table] (object-path (:db_id table) (:schema table)))
