@@ -7,6 +7,8 @@ import { Link } from "react-router";
 import PopoverWithTrigger from "metabase/components/PopoverWithTrigger.jsx";
 import Tooltip from "metabase/components/Tooltip.jsx";
 import Icon from "metabase/components/Icon.jsx";
+import ConfirmContent from "metabase/components/ConfirmContent.jsx";
+import Modal from "metabase/components/Modal.jsx";
 
 import FixedHeaderGrid from "./FixedHeaderGrid.jsx";
 
@@ -92,7 +94,7 @@ const OPTIONS_UI = {
 const getOptionUi = (option) =>
     OPTIONS_UI[option] || { ...OPTIONS_UI.unknown, title: option };
 
-const GroupPermissionHeader = ({ group, permissions, isLastColumn, isFirstColumn }) =>
+const GroupColumnHeader = ({ group, permissions, isLastColumn, isFirstColumn }) =>
     <div className="absolute bottom left right">
         <h4 className="text-centered full my1">{ group.name }</h4>
         <div className="flex" style={getBorderStyles({ isLastColumn, isFirstColumn, isFirstRow: true, isLastRow: false })}>
@@ -106,7 +108,7 @@ const GroupPermissionHeader = ({ group, permissions, isLastColumn, isFirstColumn
         </div>
     </div>
 
-const GroupPermissionRow = ({ group, permissions, entity, onUpdatePermission, isLastRow, isLastColumn, isFirstColumn }) =>
+const PermissionsCell = ({ group, permissions, entity, onUpdatePermission, isLastRow, isLastColumn, isFirstColumn }) =>
     <div className="flex" style={getBorderStyles({ isLastRow, isLastColumn, isFirstColumn, isFirstRow: false })}>
         { permissions.map(permission =>
             <GroupPermissionCell
@@ -114,20 +116,20 @@ const GroupPermissionRow = ({ group, permissions, entity, onUpdatePermission, is
                 permission={permission}
                 group={group}
                 entity={entity}
-                onUpdatePermission={(value) =>
-                    onUpdatePermission({
-                        groupId: group.id,
-                        entityId: entity.id,
-                        value: value,
-                        updater: permission.updater,
-                        postAction: permission.postAction
-                    })}
+                onUpdatePermission={onUpdatePermission}
                 isEditable={group.editable}
             />
         )}
     </div>
 
 class GroupPermissionCell extends Component {
+    constructor(props, context) {
+        super(props, context);
+        this.state = {
+            confirmText: null,
+            confirmAction: null
+        }
+    }
     render() {
         const { permission, group, entity, onUpdatePermission } = this.props;
 
@@ -166,38 +168,61 @@ class GroupPermissionCell extends Component {
                         value={value}
                         options={options}
                         permission={permission}
-                        onUpdatePermission={(...args) => {
-                            onUpdatePermission(...args);
+                        onChange={(value) => {
+                            const confirmAction = () => {
+                                onUpdatePermission({
+                                    groupId: group.id,
+                                    entityId: entity.id,
+                                    value: value,
+                                    updater: permission.updater,
+                                    postAction: permission.postAction
+                                })
+                            }
+                            let confirmText = permission.confirm && permission.confirm(group.id, entity.id, value);
+                            if (confirmText) {
+                                this.setState({ confirmText, confirmAction });
+                            } else {
+                                confirmAction();
+                            }
                             this.refs.popover.close();
                         }}
                     />
                 </PopoverWithTrigger>
+                { this.state.confirmText &&
+                    <Modal>
+                        <ConfirmContent
+                            title={this.state.confirmText}
+                            onAction={this.state.confirmAction}
+                            onClose={() => this.setState({ confirmText: null, confirmAction: null })}
+                        />
+                    </Modal>
+                }
             </div>
         );
     }
 }
 
-const AccessOption = ({ value, option, onUpdatePermission }) =>
+const AccessOption = ({ value, option, onChange }) =>
     <div
         className={cx("flex py2 px2 align-center bg-brand-hover text-white-hover", {
             "bg-brand text-white": value === option
         })}
-        onClick={() => onUpdatePermission(option)}
+        onClick={() => onChange(option)}
     >
         <Icon name={getOptionUi(option).icon} className="mr1" style={{ color: getOptionUi(option).iconColor }} size={18} />
         {getOptionUi(option).title}
     </div>
 
-const AccessOptionList = ({ value, options, onUpdatePermission }) =>
+const AccessOptionList = ({ value, options, onChange }) =>
     <ul className="py1">
         { options.map(option =>
             <li key={option}>
-                <AccessOption value={value} option={option} onUpdatePermission={onUpdatePermission} />
+                <AccessOption value={value} option={option} onChange={onChange} />
             </li>
         )}
     </ul>
 
-const EntityPermissionHeader = ({ entity }) =>
+const EntityRowHeader = ({ entity }) =>
     <div
         className="flex flex-column layout-centered px1"
         style={{
@@ -238,7 +263,7 @@ const PermissionsGrid = ({ className, grid, onUpdatePermission }) => {
             rowHeaderWidth={HEADER_WIDTH}
 
             renderCell={({ columnIndex, rowIndex }) =>
-                <GroupPermissionRow
+                <PermissionsCell
                     group={grid.groups[columnIndex]}
                     permissions={permissions}
                     entity={grid.entities[rowIndex]}
@@ -250,7 +275,7 @@ const PermissionsGrid = ({ className, grid, onUpdatePermission }) => {
                 />
             }
             renderColumnHeader={({ columnIndex }) =>
-                <GroupPermissionHeader
+                <GroupColumnHeader
                     group={grid.groups[columnIndex]}
                     permissions={permissions}
                     isFirstColumn={columnIndex === 0}
@@ -258,7 +283,7 @@ const PermissionsGrid = ({ className, grid, onUpdatePermission }) => {
                 />
             }
             renderRowHeader={({ rowIndex }) =>
-                <EntityPermissionHeader
+                <EntityRowHeader
                     entity={grid.entities[rowIndex]}
                     isFirstRow={rowIndex === 0}
                     isLastRow={rowIndex === grid.entities.length - 1}

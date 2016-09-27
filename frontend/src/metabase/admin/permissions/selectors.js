@@ -66,6 +66,11 @@ export const getTablesPermissionsGrid = createSelector(
                     },
                     updater(groupId, entityId, value) {
                         return updateFieldsPermission(permissions, groupId, entityId, value, metadata);
+                    },
+                    confirm(groupId, entityId, value) {
+                        if (getSchemasPermission(permissions, groupId, entityId) !== "controlled") {
+                            return "CHANGING THIS DB TO LIMITED LIMITED ACCESS";
+                        }
                     }
                 }
             },
@@ -110,6 +115,11 @@ export const getSchemasPermissionsGrid = createSelector(
                         if (value === "controlled") {
                             return push(`/admin/permissions/databases/${databaseId}/schemas/${encodeURIComponent(schemaName)}/tables`);
                         }
+                    },
+                    confirm(groupId, entityId, value) {
+                        if (getSchemasPermission(permissions, groupId, entityId) !== "controlled") {
+                            return "CHANGING THIS DB TO LIMITED LIMITED ACCESS";
+                        }
                     }
                 }
             },
@@ -152,6 +162,11 @@ export const getDatabasesPermissionsGrid = createSelector(
                         if (value === "controlled") {
                             return push(`/admin/permissions/databases/${databaseId}/schemas`);
                         }
+                    },
+                    confirm(groupId, entityId, value) {
+                        if (getSchemasPermission(permissions, groupId, entityId) !== "controlled" && value === "controlled") {
+                            return "CHANGING THIS DB TO LIMITED ACCESS";
+                        }
                     }
                 },
                 "native": {
@@ -168,6 +183,14 @@ export const getDatabasesPermissionsGrid = createSelector(
                     updater(groupId, entityId, value) {
                         return updateNativePermission(permissions, groupId, entityId, value, metadata);
                     },
+                    confirm(groupId, entityId, value) {
+                        if (value === "write" &&
+                            getNativePermission(permissions, groupId, entityId) !== "write" &&
+                            getSchemasPermission(permissions, groupId, entityId) !== "all"
+                        ) {
+                            return "ENABLING RAW QUERY WRITING GIVES THIS GROUP ACCESS TO ALL DATA IN THIS DATABASE";
+                        }
+                    }
                 },
             },
             entities: databases.map(database => {
