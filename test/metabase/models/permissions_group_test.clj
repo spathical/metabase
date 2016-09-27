@@ -12,6 +12,11 @@
             [metabase.util.honeysql-extensions :as hx])
   (:import metabase.models.permissions_group.PermissionsGroupInstance))
 
+;;; ---------------------------------------- Check that the root entry for Admin was created ----------------------------------------
+
+(expect (db/exists? Permissions :group_id (:id (perm-group/admin)), :object "/"))
+
+
 ;;; ---------------------------------------- check that we can get the magic permissions groups through the helper functions ----------------------------------------
 (expect PermissionsGroupInstance (perm-group/default))
 (expect PermissionsGroupInstance (perm-group/admin))
