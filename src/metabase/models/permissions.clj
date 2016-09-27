@@ -335,7 +335,13 @@
                                  (update-table-perms! group-id db-id schema table-id table-perms))))
 
 (s/defn ^:private ^:always-validate update-native-permissions! [group-id :- s/Int, db-id :- s/Int, new-native-perms :- NativePermissionsGraph]
-  (revoke-native-permissions! group-id db-id)
+  ;; revoke-native-permissions! will delete all entires that would give permissions for native access.
+  ;; Thus if you had a root DB entry like `/db/11/` this will delete that too.
+  ;; In that case we want to create a new full schemas entry so you don't lose access to all schemas when we modify native access.
+  (let [has-full-access? (db/exists? Permissions :group_id group-id, :object (object-path db-id))]
+    (revoke-native-permissions! group-id db-id)
+    (when has-full-access?
+      (grant-permissions-for-all-schemas! group-id db-id)))
   (case new-native-perms
     :write (grant-native-readwrite-permissions! group-id db-id)
     :read  (grant-native-read-permissions! group-id db-id)
@@ -400,4 +406,4 @@
   ;; The following arity is provided soley for convenience for tests/REPL usage
   ([ks new-value]
    {:pre [(sequential? ks)]}
-   (update-graph! (assoc-in (graph) ks new-value))))
+   (update-graph! (assoc-in (graph) (cons :groups ks) new-value))))
