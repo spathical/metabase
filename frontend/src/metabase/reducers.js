@@ -9,7 +9,7 @@ import requests from "metabase/redux/requests";
 
 /* admin */
 import settings from "metabase/admin/settings/settings";
-import * as people from "metabase/admin/people/reducers";
+import people from "metabase/admin/people/people";
 import databases from "metabase/admin/databases/database";
 import datamodel from "metabase/admin/datamodel/metadata";
 import permissions from "metabase/admin/permissions/permissions";
@@ -59,7 +59,7 @@ const reducers = {
     // admin reducers
     databases,
     datamodel: datamodel,
-    people: combineReducers(people),
+    people,
     settings,
     permissions,
 };

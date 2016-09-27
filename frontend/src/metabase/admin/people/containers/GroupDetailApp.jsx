@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import { connect } from "react-redux";
 
 import { getGroup, getGroups, getUsers } from "../selectors";
-import { loadGroups, loadGroupDetails, fetchUsers } from "../actions";
+import { loadGroups, loadGroupDetails, fetchUsers } from "../people";
 
 import GroupDetail from "../components/GroupDetail.jsx";
 

@@ -1,11 +1,11 @@
 
-import { AngularResourceProxy, createThunkAction } from "metabase/lib/redux";
-import { createAction } from "redux-actions";
+import { AngularResourceProxy, createAction, createThunkAction, handleActions, combineReducers } from "metabase/lib/redux";
 import { normalize, Schema, arrayOf } from "normalizr";
 
 import MetabaseAnalytics from "metabase/lib/analytics";
 
 import moment from "moment";
+import _ from "underscore";
 
 const user = new Schema('user');
 
@@ -15,18 +15,18 @@ const UserApi = new AngularResourceProxy("User", ["list", "update", "create", "d
 const PermissionsApi = new AngularResourceProxy("Permissions", ["groups", "groupDetails"]);
 
 // action constants
-export const CREATE_USER = 'CREATE_USER';
-export const DELETE_USER = 'DELETE_USER';
-export const FETCH_USERS = 'FETCH_USERS';
-export const GRANT_ADMIN = 'GRANT_ADMIN';
-export const RESEND_INVITE = 'RESEND_INVITE';
-export const RESET_PASSWORD_EMAIL = 'RESET_PASSWORD_EMAIL';
-export const RESET_PASSWORD_MANUAL = 'RESET_PASSWORD_MANUAL';
-export const REVOKE_ADMIN = 'REVOKE_ADMIN';
-export const SHOW_MODAL = 'SHOW_MODAL';
-export const UPDATE_USER = 'UPDATE_USER';
-export const LOAD_GROUPS = 'LOAD_GROUPS';
-export const LOAD_GROUP_DETAILS = 'LOAD_GROUP_DETAILS';
+export const CREATE_USER = 'metabase/admin/people/CREATE_USER';
+export const DELETE_USER = 'metabase/admin/people/DELETE_USER';
+export const FETCH_USERS = 'metabase/admin/people/FETCH_USERS';
+export const GRANT_ADMIN = 'metabase/admin/people/GRANT_ADMIN';
+export const RESEND_INVITE = 'metabase/admin/people/RESEND_INVITE';
+export const RESET_PASSWORD_EMAIL = 'metabase/admin/people/RESET_PASSWORD_EMAIL';
+export const RESET_PASSWORD_MANUAL = 'metabase/admin/people/RESET_PASSWORD_MANUAL';
+export const REVOKE_ADMIN = 'metabase/admin/people/REVOKE_ADMIN';
+export const SHOW_MODAL = 'metabase/admin/people/SHOW_MODAL';
+export const UPDATE_USER = 'metabase/admin/people/UPDATE_USER';
+export const LOAD_GROUPS = 'metabase/admin/people/LOAD_GROUPS';
+export const LOAD_GROUP_DETAILS = 'metabase/admin/people/LOAD_GROUP_DETAILS';
 
 
 // action creators
@@ -135,4 +135,35 @@ export const updateUser = createThunkAction(UPDATE_USER, function(user) {
 
         return updatedUser;
     };
+});
+
+const modal = handleActions({
+    [SHOW_MODAL]: { next: (state, { payload }) => payload }
+}, null);
+
+
+const users = handleActions({
+    [FETCH_USERS]: { next: (state, { payload }) => ({ ...payload.entities.user }) },
+    [CREATE_USER]: { next: (state, { payload: user }) => ({ ...state, [user.id]: user }) },
+    [DELETE_USER]: { next: (state, { payload: user }) => _.omit(state, user.id) },
+    [GRANT_ADMIN]: { next: (state, { payload: user }) => ({ ...state, [user.id]: user }) },
+    [REVOKE_ADMIN]: { next: (state, { payload: user }) => ({ ...state, [user.id]: user }) },
+    [UPDATE_USER]: { next: (state, { payload: user }) => ({ ...state, [user.id]: user }) }
+}, null);
+
+const groups = handleActions({
+    [LOAD_GROUPS]: { next: (state, { payload }) =>
+        payload && payload.filter(group => group.name !== "MetaBot")
+    },
+}, null);
+
+const group = handleActions({
+    [LOAD_GROUP_DETAILS]: { next: (state, { payload }) => payload },
+}, null);
+
+export default combineReducers({
+    modal,
+    users,
+    groups,
+    group
 });

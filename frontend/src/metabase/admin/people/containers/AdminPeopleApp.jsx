@@ -3,21 +3,28 @@ import React, { Component, PropTypes } from "react";
 
 import { LeftNavPane, LeftNavPaneItem } from "metabase/components/LeftNavPane.jsx";
 
+import AdminLayout from "metabase/components/AdminLayout.jsx";
+
 export default class AdminPeopleApp extends Component {
+    static propTypes = {
+        children: PropTypes.any
+    };
+
     render() {
         const title = "People"
-        const { location: { pathname }, children } = this.props;
+        const { children } = this.props;
         return (
-            <div className="flex">
-                { title }
-                <LeftNavPane>
-                    <LeftNavPaneItem name="People" path="/admin/people" selected={pathname.startsWith('admin/people')} />
-                    <LeftNavPaneItem name="Groups" path="/admin/people/groups" selected={pathname.startsWith('admin/people/groups')} />
-                </LeftNavPane>
-                <div className="flex-full">
-                    {children}
-                </div>
-            </div>
+            <AdminLayout
+                title={title}
+                sidebar={
+                    <LeftNavPane>
+                        <LeftNavPaneItem name="People" path="/admin/people" index />
+                        <LeftNavPaneItem name="Groups" path="/admin/people/groups" />
+                    </LeftNavPane>
+                }
+            >
+                {children}
+            </AdminLayout>
         );
     }
 }
