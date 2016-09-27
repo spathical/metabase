@@ -1,15 +1,18 @@
 import React from "react";
-import { Link } from "react-router";
+import { Link, IndexLink } from "react-router";
 
-import cx from 'classnames';
-
-export function LeftNavPaneItem({ name, path, selected }) {
+export function LeftNavPaneItem({ name, path, index = false }) {
     return (
         <li>
-            <Link to={path}
-                  className={cx("AdminList-item flex align-center justify-between no-decoration", { selected: selected })} >
-                {name}
-            </Link>
+            { index ?
+                <IndexLink to={path} className="AdminList-item flex align-center justify-between no-decoration" activeClassName="selected" >
+                    {name}
+                </IndexLink>
+            :
+                <Link to={path} className="AdminList-item flex align-center justify-between no-decoration" activeClassName="selected" >
+                    {name}
+                </Link>
+            }
         </li>
     );
 }

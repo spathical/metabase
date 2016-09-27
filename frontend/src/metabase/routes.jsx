@@ -50,7 +50,7 @@ import ReferenceGettingStartedGuide from "metabase/reference/containers/Referenc
 
 import getAdminPermissionsRoutes from "metabase/admin/permissions/routes.jsx";
 
-import AdminPeople from "metabase/admin/people/components/AdminPeople.jsx";
+import PeopleListingApp from "metabase/admin/people/containers/PeopleListingApp.jsx";
 import GroupsListingApp from "metabase/admin/people/containers/GroupsListingApp.jsx";
 import GroupDetailApp from "metabase/admin/people/containers/GroupDetailApp.jsx";
 
@@ -192,7 +192,7 @@ export const getRoutes = (store) =>
 
                 {/* PEOPLE */}
                 <Route path="people" component={AdminPeopleApp}>
-                    <IndexRoute component={AdminPeople} />
+                    <IndexRoute component={PeopleListingApp} />
                     <Route path="groups">
                         <IndexRoute component={GroupsListingApp} />
                         <Route path=":groupID" component={GroupDetailApp} />

@@ -14,9 +14,9 @@ import UserAvatar from "metabase/components/UserAvatar.jsx";
 import Icon from "metabase/components/Icon.jsx";
 import Tooltip from "metabase/components/Tooltip.jsx";
 
-import EditUserForm from "./EditUserForm.jsx";
-import UserActionsSelect from "./UserActionsSelect.jsx";
-import UserRoleSelect from "./UserRoleSelect.jsx";
+import EditUserForm from "../components/EditUserForm.jsx";
+import UserActionsSelect from "../components/UserActionsSelect.jsx";
+import UserRoleSelect from "../components/UserRoleSelect.jsx";
 
 export const MODAL_ADD_PERSON = 'MODAL_ADD_PERSON';
 export const MODAL_EDIT_DETAILS = 'MODAL_EDIT_DETAILS';
@@ -28,7 +28,7 @@ export const MODAL_RESET_PASSWORD_EMAIL = 'MODAL_RESET_PASSWORD_EMAIL';
 export const MODAL_USER_ADDED_WITH_INVITE = 'MODAL_USER_ADDED_WITH_INVITE';
 export const MODAL_USER_ADDED_WITH_PASSWORD = 'MODAL_USER_ADDED_WITH_PASSWORD';
 
-import { adminPeopleSelectors } from "../selectors";
+import { getUsers, getModal } from "../selectors";
 import {
     createUser,
     deleteUser,
@@ -40,11 +40,12 @@ import {
     showModal,
     updateUser,
     resendInvite
-} from "../actions";
+} from "../people";
 
 const mapStateToProps = (state, props) => {
     return {
-        ...adminPeopleSelectors(state),
+        users: getUsers(state, props),
+        modal: getModal(state, props),
         user: state.currentUser
     }
 }
@@ -63,7 +64,7 @@ const mapDispatchToProps = {
 };
 
 @connect(mapStateToProps, mapDispatchToProps)
-export default class AdminPeople extends Component {
+export default class PeopleListingApp extends Component {
 
     constructor(props, context) {
         super(props, context);
@@ -398,7 +399,7 @@ export default class AdminPeople extends Component {
                 <div className="wrapper">
                     { modal ? this.renderModal(modal.type, modal.details) : null }
 
-                    <section className="PageHeader clearfix px2">
+                    <section className="clearfix px2">
                         <a data-metabase-event="People Admin;Add Person Modal" className="Button Button--primary float-right" href="#" onClick={() => this.props.showModal({type: MODAL_ADD_PERSON})}>Add person</a>
                         <h2 className="PageTitle">People</h2>
                     </section>

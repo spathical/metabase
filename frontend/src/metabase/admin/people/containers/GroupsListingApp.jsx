@@ -1,9 +1,8 @@
 import React, { Component } from "react";
 import { connect } from "react-redux";
 
-// TODO - these should move to people?
 import { getGroups } from "../selectors";
-import { loadGroups } from "../../permissions/permissions";
+import { loadGroups } from "../people";
 
 import GroupsListing from "../components/GroupsListing.jsx";
 
