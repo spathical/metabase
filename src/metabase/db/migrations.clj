@@ -50,6 +50,7 @@
   `(do (defn- ~migration-name [] ~@body)
        (swap! data-migrations conj #'~migration-name)))
 
+;; TODO - shouldn't this be called `run-all!`?
 (defn run-all
   "Run all data migrations defined by `defmigration`."
   []
@@ -231,16 +232,17 @@
             :user_id  user-id
             :group_id admin-group-id))))))
 
-;; add existing databases to default permissions groups.
-(defmigration add-databases-to-magic-permissions-groups
-  ;; admin group has a single entry that lets it access to everything
+;; admin group has a single entry that lets it access to everything
+(defmigration add-admin-group-root-entry
   (binding [perms/*allow-admin-permissions-changes* true
             perms/*allow-root-entries* true]
     (u/ignore-exceptions
       (db/insert! Permissions
         :group_id (perm-group/admin)
-        :object   "/")))
-  ;; default and metabot groups have entries for each individual DB
+        :object   "/"))))
+
+;; add existing databases to default permissions groups. default and metabot groups have entries for each individual DB
+(defmigration add-databases-to-magic-permissions-groups
   (let [db-ids (db/select-ids Database)]
     (doseq [{group-id :id} [(perm-group/default)
                             (perm-group/metabot)]
