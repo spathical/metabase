@@ -11,6 +11,7 @@
                              [card-label :refer [CardLabel]]
                              [common :as common]
                              [database :refer [Database]]
+                             [interface :as models]
                              [label :refer [Label]]
                              [table :refer [Table]]
                              [view-log :refer [ViewLog]])
@@ -124,6 +125,7 @@
       cards
       (filter (partial card-has-label? label) cards))))
 
+
 (defannotation CardFilterOption
   "Option must be a valid card filter option."
   [symb value :nillable]
@@ -142,7 +144,9 @@
     (case f
       :database (read-check Database model_id)
       :table    (read-check Database (db/select-one-field :db_id Table, :id model_id))))
-  (cards-for-filter-option f model_id label))
+  (->> (cards-for-filter-option f model_id label)
+       (filterv models/can-read?))) ; filterv because we want make sure all the filtering is done while current user perms set is still bound
+
 
 (defendpoint POST "/"
   "Create a new `Card`."
@@ -159,6 +163,7 @@
          :public_perms           public_perms
          :visualization_settings visualization_settings)
        (events/publish-event :card-create)))
+
 
 (defendpoint GET "/:id"
   "Get `Card` with ID."

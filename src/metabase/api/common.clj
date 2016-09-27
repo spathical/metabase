@@ -30,6 +30,10 @@
   "Is the current user a superuser?"
   false)
 
+(def ^:dynamic *current-user-permissions-set*
+  "Delay to the set of permissions granted to the current user."
+  (atom nil))
+
 
 ;;; ## CONDITIONAL RESPONSE FUNCTIONS / MACROS
 

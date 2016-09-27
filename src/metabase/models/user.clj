@@ -4,6 +4,7 @@
             [metabase.db :as db]
             [metabase.email.messages :as email]
             (metabase.models [interface :as i]
+                             [permissions :as perms]
                              [permissions-group :as perm-group]
                              [permissions-group-membership :refer [PermissionsGroupMembership], :as perm-membership]
                              [setting :as setting])
@@ -164,11 +165,12 @@
 ;;; ------------------------------------------------------------ Permissions ------------------------------------------------------------
 
 (defn permissions-set
-  "Return a set of all permissions object paths that USER has been granted access to."
-  [{user-id :id}]
-  (when-let [paths (seq (map :object (db/query {:select    [:p.object]
-                                                :from      [[:permissions_group_membership :pgm]]
-                                                :left-join [[:permissions_group :pg] [:= :pgm.group_id :pg.id]
-                                                            [:permissions :p]        [:= :p.group_id :pgm.id]]
-                                                :where     [:= :user_id user-id]})))]
-    (set paths)))
+  "Return a set of all permissions object paths that USER-OR-ID has been granted access to."
+  [user-or-id]
+  (when-let [user-id (u/get-id user-or-id)]
+    (when-let [paths (seq (map :object (db/query {:select [:p.object]
+                                                  :from   [[:permissions_group_membership :pgm]]
+                                                  :join   [[:permissions_group :pg] [:= :pgm.group_id :pg.id]
+                                                           [:permissions :p]        [:= :p.group_id :pgm.id]]
+                                                  :where  [:= :user_id user-id]})))]
+      (set paths))))

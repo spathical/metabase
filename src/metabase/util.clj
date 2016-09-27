@@ -670,3 +670,11 @@
   [k]
   (when k
     (s/replace (str k) #"^:" "")))
+
+(defn get-id
+  "Return the value of `:id` if OBJECT-OR-ID is a map, or otherwise return OBJECT-OR-ID as-is.
+   This is provided as a convenience to allow model-layer functions to easily accept either an object or raw ID."
+  ;; TODO - lots of functions can be rewritten to use this, which would make them more flexible
+  [object-or-id]
+  (or (:id object-or-id)
+      object-or-id))

@@ -139,7 +139,7 @@
   (u/prog1 (every? (partial set-has-full-permissions? permissions-set)
                    object-paths-set)
     ;; NOCOMMIT
-    (println (format "set-has-full-permissions-for-set?\n%s\nfor %s\n-> %s" permissions-set object-paths-set <>))))
+    (println (format "\nset-has-full-permissions-for-set?\n%s\nfor %s\n-> %s" (u/format-color 'green permissions-set) (u/format-color 'red object-paths-set) (u/format-color 'blue <>)))))
 
 
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+

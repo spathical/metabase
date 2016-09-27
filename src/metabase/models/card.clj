@@ -1,13 +1,14 @@
 (ns metabase.models.card
   (:require [medley.core :as m]
-            [metabase.api.common :refer [*current-user-id*]]
+            [metabase.api.common :refer [*current-user-id* *current-user-permissions-set*]]
             [metabase.db :as db]
             (metabase.models [card-label :refer [CardLabel]]
                              [dependency :as dependency]
                              [interface :as i]
                              [label :refer [Label]]
                              [permissions :as perms]
-                             [revision :as revision])
+                             [revision :as revision]
+                             [user :as user])
             [metabase.query :as q]
             [metabase.query-processor.expand :as expand]
             [metabase.query-processor.permissions :as qp-perms]
@@ -82,6 +83,7 @@
     {:Metric  (q/extract-metric-ids (:query dataset_query))
      :Segment (q/extract-segment-ids (:query dataset_query))}))
 
+(declare current-user-has-permissions?)
 
 (u/strict-extend (class Card)
   i/IEntity
@@ -89,8 +91,8 @@
          {:hydration-keys     (constantly [:card])
           :types              (constantly {:display :keyword, :query_type :keyword, :dataset_query :json, :visualization_settings :json, :description :clob})
           :timestamped?       (constantly true)
-          :can-read?          i/publicly-readable?
-          :can-write?         i/publicly-writeable?
+          :can-read?          (partial current-user-has-permissions? :read)
+          :can-write?         (partial current-user-has-permissions? :write)
           :pre-update         populate-query-fields
           :pre-insert         (comp populate-query-fields pre-insert)
           :pre-cascade-delete pre-cascade-delete})
@@ -106,13 +108,30 @@
 ;;; ------------------------------------------------------------ Permissions Checking ------------------------------------------------------------
 
 (defn- permissions-paths-set
-  "Return a set of required permissions object paths for CARD."
-  [{{database-id :database, query-type :type, :as query} :dataset_query}]
-  (if (= (keyword query-type) :native)
-    #{(perms/native-read-path database-id)}
-    (let [{{:keys [source-table join-tables]} :query} (resolve/resolve (expand/expand query))]
-      (set (for [table (cons source-table join-tables)]
-             (perms/object-path database-id (:schema table) (:id table)))))))
+  "Return a set of required permissions object paths for CARD.
+   Optionally specify whether you want `:read` or `:write` permissions; default is `:read`.
+   (`:write` permissions only affects native queries)."
+  ([card]
+   (permissions-paths-set :read card))
+  ([read-or-write {{database-id :database, query-type :type, :as query} :dataset_query}]
+   (if (= (keyword query-type) :native)
+     #{((case read-or-write
+          :read  perms/native-read-path
+          :write perms/native-readwrite-path) database-id)}
+     (let [{{:keys [source-table join-tables]} :query} (resolve/resolve (expand/expand query))]
+       (set (for [table (cons source-table join-tables)]
+              (perms/object-path database-id (:schema table) (:id table))))))))
 
-(defn- has-permissions? [permissions-set card]
-  (perms/set-has-full-permissions-for-set? permissions-set (permissions-paths-set card)))
+(defn has-permissions?
+  "Does PERMISSIONS-SET grant access to all the objects referenced by CARD?
+   Optionally specify whether you want `:read` or `:write` permissions; default is `:read`."
+  ^Boolean
+  ([permissions-set card]
+   (has-permissions? :read permissions-set card))
+  ([read-or-write permissions-set card]
+   (perms/set-has-full-permissions-for-set? permissions-set (permissions-paths-set read-or-write card))))
+
+(defn current-user-has-permissions?
+  "Does the current user have READ-OR-WRITE permissions for CARD?"
+  ^Boolean [read-or-write card]
+  (has-permissions? read-or-write @*current-user-permissions-set* card))
