@@ -18,6 +18,9 @@
             (metabase [query-processor :as qp]
                       [util :as u])))
 
+
+;;; ------------------------------------------------------------ Hydration ------------------------------------------------------------
+
 (defn- hydrate-labels
   "Efficiently hydrate the `Labels` for a large collection of `Cards`."
   [cards]
@@ -36,6 +39,9 @@
     (let [favorite-card-ids (set (db/select-field :card_id CardFavorite, :owner_id *current-user-id*, :card_id [:in (map :id cards)]))]
       (for [card cards]
         (assoc card :favorite (contains? favorite-card-ids (:id card)))))))
+
+
+;;; ------------------------------------------------------------ Filtered Fetch Fns ------------------------------------------------------------
 
 (defn- cards:all
   "Return all `Cards`."
@@ -125,6 +131,8 @@
       cards
       (filter (partial card-has-label? label) cards))))
 
+
+;;; ------------------------------------------------------------ /api/card & /api/card/:id endpoints ------------------------------------------------------------
 
 (defannotation CardFilterOption
   "Option must be a valid card filter option."
@@ -216,6 +224,9 @@
       (events/publish-event :card-delete (assoc card :actor_id *current-user-id*)))))
 
 
+;;; ------------------------------------------------------------ Favoriting ------------------------------------------------------------
+
+
 (defendpoint GET "/:id/favorite"
   "Has current user favorited this `Card`?"
   [id]
@@ -235,6 +246,9 @@
     (db/cascade-delete! CardFavorite, :id id)))
 
 
+;;; ------------------------------------------------------------ Editing Card Labels ------------------------------------------------------------
+
+
 (defendpoint POST "/:card-id/labels"
   "Update the set of `Labels` that apply to a `Card`."
   [card-id :as {{:keys [label_ids]} :body}]
@@ -248,6 +262,8 @@
       (db/insert! CardLabel :label_id label-id, :card_id card-id)))
   {:status :ok})
 
+
+;;; ------------------------------------------------------------ Running a Query ------------------------------------------------------------
 
 (defendpoint POST "/:card-id/query"
   "Run the query associated with a Card."

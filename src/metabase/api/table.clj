@@ -40,8 +40,8 @@
 (defendpoint PUT "/:id"
   "Update `Table` with ID."
   [id :as {{:keys [display_name entity_type visibility_type description caveats points_of_interest show_in_getting_started]} :body}]
-  {display_name    NonEmptyString,
-   entity_type     TableEntityType,
+  {display_name    NonEmptyString
+   entity_type     TableEntityType
    visibility_type TableVisibilityType}
   (write-check Table id)
   (check-500 (db/update-non-nil-keys! Table id
@@ -94,6 +94,7 @@
            :destination_id (:fk_target_field_id origin-field)
            :destination    (hydrate (Field (:fk_target_field_id origin-field)) :table)})))))
 
+;; TODO - Should this require superuser status instead of table write status?
 (defendpoint POST "/:id/sync"
   "Re-sync the metadata for this `Table`."
   [id]

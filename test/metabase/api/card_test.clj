@@ -9,6 +9,8 @@
                              [card-label :refer [CardLabel]]
                              [database :refer [Database]]
                              [label :refer [Label]]
+                             [permissions :refer [Permissions], :as perms]
+                             [permissions-group :as perms-group]
                              [table :refer [Table]]
                              [view-log :refer [ViewLog]])
             [metabase.test.data :refer :all]
@@ -194,6 +196,19 @@
      :archived               false
      :labels                 []})
   ((user->client :rasta) :get 200 (str "card/" (:id card))))
+
+;; Check that a user without permissions isn't allowed to fetch the card
+(expect-with-temp [Database  [{database-id :id}]
+                   Table     [{table-id :id}   {:db_id database-id}]
+                   Card      [card             {:dataset_query {:database database-id
+                                                                :type     :query
+                                                                :query    {:source-table table-id, :aggregation {:aggregation-type :count}}}}]]
+  "You don't have permissions to do that."
+  (do
+    ;; revoke permissions for default group to this database
+    (perms/delete-related-permissions! (perms-group/default) (perms/object-path database-id))
+    ;; now a non-admin user shouldn't be able to fetch this card
+    ((user->client :rasta) :get 403 (str "card/" (:id card)))))
 
 ;; ## PUT /api/card/:id
 

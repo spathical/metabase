@@ -203,6 +203,7 @@
   (read-check Database id)
   (sort-by (comp s/lower-case :name :table) (hydrate (database/pk-fields {:id id}) :table)))
 
+;; TODO - Shouldn't we just check for superuser status instead of write checking?
 (defendpoint POST "/:id/sync"
   "Update the metadata for this `Database`."
   [id]

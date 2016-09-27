@@ -26,6 +26,7 @@
   (check-superuser)
   (check-404 (segment/retrieve-segment id)))
 
+;; TODO - Why do we require superuser status for GET /api/segment/:id but not GET /api/segment?
 (defendpoint GET "/"
   "Fetch *all* `Segments`."
   []

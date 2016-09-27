@@ -28,6 +28,7 @@
   (check-superuser)
   (check-404 (metric/retrieve-metric id)))
 
+
 (defendpoint GET "/"
   "Fetch *all* `Metrics`."
   [id]

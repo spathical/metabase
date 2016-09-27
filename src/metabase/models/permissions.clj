@@ -283,20 +283,21 @@
 
 ;;; ---------------------------------------- Helper Fns ----------------------------------------
 
-(defn- delete-related-permissions!
-  "Delete all permissions for Group with GROUP-ID for ancestors or descendant objects of object with PATH.
+(defn delete-related-permissions!
+  "Delete all permissions for GROUP-OR-ID for ancestors or descendant objects of object with PATH.
    You can optionally include OTHER-CONDITIONS, which are anded into the filter clause, to further restrict what is deleted."
   {:style/indent 2}
-  [group-id path & other-conditions]
+  [group-or-id path & other-conditions]
+  {:pre [(integer? (u/get-id group-or-id)) (valid-object-path? path)]}
   (let [where {:where (apply list
                              :and
-                             [:= :group_id group-id]
+                             [:= :group_id (u/get-id group-or-id)]
                              [:or
                               [:like path (hx/concat :object (hx/literal "%"))]
                               [:like :object (str path "%")]]
                              other-conditions)}]
     (when-let [revoked (db/select-field :object Permissions where)]
-      (log/debug (u/format-color 'red "Revoking permissions for group %d: %s" group-id revoked))
+      (log/debug (u/format-color 'red "Revoking permissions for group %d: %s" (u/get-id group-or-id) revoked))
       (db/cascade-delete! Permissions where))))
 
 (defn- revoke-permissions!
@@ -328,10 +329,11 @@
   {:pre [(integer? group-id) (integer? database-id)]}
   (grant-permissions! group-id (native-readwrite-path database-id)))
 
-(defn- revoke-db-permissions!
+(defn- revoke-db-schema-permissions!
   "Remove all permissions entires for a DB and any child objects.
    This does *not* revoke native permissions; use `revoke-native-permssions!` to do that."
   [group-id database-id]
+  ;; TODO - if permissions for this DB are DB root entries like `/db/1/` won't this end up removing our native perms?
   (delete-related-permissions! group-id (object-path database-id)
     [:not= :object (native-readwrite-path database-id)]
     [:not= :object (native-read-path database-id)]))
@@ -383,7 +385,7 @@
   (when-let [new-native-perms (:native new-db-perms)]
     (update-native-permissions! group-id db-id new-native-perms))
   (when-let [schemas (:schemas new-db-perms)]
-    (revoke-db-permissions! group-id db-id)
+    (revoke-db-schema-permissions! group-id db-id)
     (cond
       (= schemas :all)  (grant-permissions-for-all-schemas! group-id db-id)
       (= schemas :none) nil
