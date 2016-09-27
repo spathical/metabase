@@ -106,13 +106,13 @@ const GroupPermissionHeader = ({ group, permissions, isLastColumn, isFirstColumn
         </div>
     </div>
 
-const GroupPermissionRow = ({ group, permissions, entity, data, onUpdatePermission, isLastRow, isLastColumn, isFirstColumn }) =>
+const GroupPermissionRow = ({ group, permissions, entity, onUpdatePermission, isLastRow, isLastColumn, isFirstColumn }) =>
     <div className="flex" style={getBorderStyles({ isLastRow, isLastColumn, isFirstColumn, isFirstRow: false })}>
         { permissions.map(permission =>
             <GroupPermissionCell
                 key={permission.id}
                 permission={permission}
-                value={data[permission.id]}
+                value={permission.getter(group.id, entity.id)}
                 onUpdatePermission={(value) =>
                     onUpdatePermission({
                         groupId: group.id,
@@ -234,7 +234,6 @@ const PermissionsGrid = ({ className, grid, onUpdatePermission }) => {
                     group={grid.groups[columnIndex]}
                     permissions={permissions}
                     entity={grid.entities[rowIndex]}
-                    data={grid.data[rowIndex] && grid.data[rowIndex][columnIndex]}
                     onUpdatePermission={onUpdatePermission}
                     isFirstRow={rowIndex === 0}
                     isLastRow={rowIndex === grid.entities.length - 1}

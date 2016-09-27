@@ -4,9 +4,23 @@ import { createSelector } from 'reselect';
 
 import { push } from "react-router-redux";
 
-import { diffPermissions, updatePermission, getNativePermissions, getSchemasPermissions, getTablesPermissions, getFieldsPermissions } from "metabase/lib/permissions";
+import Metadata from "metabase/meta/metadata/Metadata";
 
-import _ from "underscore";
+import type { DatabaseId } from "metabase/meta/types/Database";
+import type { SchemaName } from "metabase/meta/types/Table";
+import type { Group, GroupsPermissions } from "metabase/meta/types/Permissions";
+
+import {
+    getNativePermission,
+    getSchemasPermission,
+    getTablesPermission,
+    getFieldsPermission,
+    updateFieldsPermission,
+    updateTablesPermission,
+    updateSchemasPermission,
+    updateNativePermission,
+    diffPermissions,
+} from "metabase/lib/permissions";
 
 export const getGroups = (state) => state.permissions.groups;
 const getDatabases = (state) => state.permissions.databases;
@@ -15,6 +29,11 @@ const getOriginalPermissions = (state) => state.permissions.originalPermissions;
 
 const getDatabaseId = (state, props) => props.params.databaseId ? parseInt(props.params.databaseId) : null
 const getSchemaName = (state, props) => props.params.schemaName
+
+const getMetadata = createSelector(
+    [(state) => state.permissions.databases],
+    (databases) => databases && new Metadata(databases)
+);
 
 export const getDirty = createSelector(
     getPermissions, getOriginalPermissions,
@@ -25,17 +44,15 @@ export const getDirty = createSelector(
 export const getSaveError = (state) => state.permissions.saveError;
 
 export const getTablesPermissionsGrid = createSelector(
-    getGroups, getDatabases, getPermissions, getDatabaseId, getSchemaName,
-    (groups, databases, permissions, databaseId, schemaName) => {
-        if (!groups || !databases || !permissions) {
+    getGroups, getMetadata, getPermissions, getDatabaseId, getSchemaName,
+    (groups: Array<Group>, metadata: Metadata, permissions: GroupsPermissions, databaseId: DatabaseId, schemaName: SchemaName) => {
+        const database = metadata && metadata.database(databaseId);
+
+        if (!groups || !permissions || !metadata || !database) {
             return null;
         }
 
-        let database = _.findWhere(databases, { id: databaseId });
-        let tables = database.tables.filter(table => (table.schema || "") === schemaName);
-
-        let schemaNames = _.uniq(database.tables.map(table => (table.schema || "")));
-        let tableIds = tables.map(table => table.id);
+        const tables = database.tablesInSchema(schemaName || null);
 
         return {
             type: "table",
@@ -43,11 +60,11 @@ export const getTablesPermissionsGrid = createSelector(
             permissions: {
                 "fields": {
                     options: ["all", "none"],
-                    updater: (perms, groupId, { databaseId, schemaName, tableId }, value) => {
-                        perms = updatePermission(perms, [groupId, databaseId, "schemas"], "controlled", schemaNames);
-                        perms = updatePermission(perms, [groupId, databaseId, "schemas", schemaName], "controlled", tableIds);
-                        perms = updatePermission(perms, [groupId, databaseId, "schemas", schemaName, tableId], value /* TODO: field ids, when enabled "controlled" fields */);
-                        return perms;
+                    getter: (groupId, entityId) => {
+                        return getFieldsPermission(permissions, groupId, entityId);
+                    },
+                    updater: (permissions, groupId, entityId, value) => {
+                        return updateFieldsPermission(permissions, groupId, entityId, value, metadata);
                     }
                 }
             },
@@ -58,36 +75,33 @@ export const getTablesPermissionsGrid = createSelector(
                     tableId: table.id
                 },
                 name: table.display_name,
-            })),
-            data: tables.map(table =>
-                groups.map(group => ({
-                    fields: getFieldsPermissions(permissions[group.id], databaseId, schemaName, table.id)
-                }))
-            )
-        }
+            }))
+        };
     }
 );
 
 export const getSchemasPermissionsGrid = createSelector(
-    getGroups, getDatabases, getPermissions, getDatabaseId,
-    (groups, databases, permissions, databaseId) => {
-        if (!groups || !databases || !permissions) {
+    getGroups, getMetadata, getPermissions, getDatabaseId,
+    (groups: Array<Group>, metadata: Metadata, permissions: GroupsPermissions, databaseId: DatabaseId) => {
+        const database = metadata && metadata.database(databaseId);
+
+        if (!groups || !permissions || !metadata || !database) {
             return null;
         }
 
-        let database = _.findWhere(databases, { id: databaseId });
-        let schemaNames = _.uniq(database.tables.map(table => (table.schema || "")));
+        const schemaNames = database.schemaNames();
+
         return {
             type: "schema",
             groups,
             permissions: {
                 "tables": {
                     options: ["all", "controlled", "none"],
-                    updater: (perms, groupId, { databaseId, schemaName }, value) => {
-                        let tableIds = database.tables.filter(table => (table.schema || "") === schemaName).map(table => table.id);
-                        perms = updatePermission(perms, [groupId, databaseId, "schemas"], "controlled", schemaNames);
-                        perms = updatePermission(perms, [groupId, databaseId, "schemas", schemaName], value, tableIds);
-                        return perms;
+                    getter: (groupId, entityId) => {
+                        return getTablesPermission(permissions, groupId, entityId);
+                    },
+                    updater: (permissions, groupId, entityId, value) => {
+                        return updateTablesPermission(permissions, groupId, entityId, value, metadata);
                     },
                     postAction: (groupId, { databaseId, schemaName }, value) => {
                         if (value === "controlled") {
@@ -103,22 +117,19 @@ export const getSchemasPermissionsGrid = createSelector(
                 },
                 name: schemaName,
                 link: { name: "View tables", url: `/admin/permissions/databases/${databaseId}/schemas/${encodeURIComponent(schemaName)}/tables`}
-            })),
-            data: schemaNames.map(schemaName =>
-                groups.map(group => ({
-                    tables: getTablesPermissions(permissions[group.id], databaseId, schemaName)
-                }))
-            )
+            }))
         }
     }
 );
 
 export const getDatabasesPermissionsGrid = createSelector(
-    getGroups, getDatabases, getPermissions,
-    (groups, databases, permissions) => {
-        if (!groups || !databases || !permissions) {
+    getGroups, getMetadata, getPermissions,
+    (groups: Array<Group>, metadata: Metadata, permissions: GroupsPermissions) => {
+        if (!groups || !permissions || !metadata) {
             return null;
         }
+
+        const databases = metadata.databases();
 
         return {
             type: "database",
@@ -126,14 +137,11 @@ export const getDatabasesPermissionsGrid = createSelector(
             permissions: {
                 "schemas": {
                     options: ["all", "controlled", "none"],
-                    updater: (perms, groupId, { databaseId }, value) => {
-                        let database = _.findWhere(databases, { id: databaseId });
-                        let schemaNames = database && _.uniq(database.tables.map(table => (table.schema || "")));
-                        // disable native query permisisons if setting schema access to none
-                        if (value === "none") {
-                            perms = updatePermission(perms, [groupId, databaseId, "native"], "none");
-                        }
-                        return updatePermission(perms, [groupId, databaseId, "schemas"], value, schemaNames);
+                    getter: (groupId, entityId) => {
+                        return getSchemasPermission(permissions, groupId, entityId);
+                    },
+                    updater: (permissions, groupId, entityId, value) => {
+                        return updateSchemasPermission(permissions, groupId, entityId, value, metadata)
                     },
                     postAction: (groupId, { databaseId }, value) => {
                         if (value === "controlled") {
@@ -143,17 +151,16 @@ export const getDatabasesPermissionsGrid = createSelector(
                 },
                 "native": {
                     options: ["write", "read", "none"],
-                    updater: (perms, groupId, { databaseId }, value) => {
-                        // if enabling native query write access, give access to all schemas since they are equivalent
-                        if (value === "write") {
-                            perms = updatePermission(perms, [groupId, databaseId, "schemas"], "all");
-                        }
-                        return updatePermission(perms, [groupId, databaseId, "native"], value);
+                    getter: (groupId, entityId) => {
+                        return getNativePermission(permissions, groupId, entityId);
+                    },
+                    updater: (permissions, groupId, entityId, value) => {
+                        return updateNativePermission(permissions, groupId, entityId, value, metadata);
                     },
                 },
             },
             entities: databases.map(database => {
-                let schemas = _.uniq(database.tables.map(table => (table.schema || "")));
+                let schemas = database.schemaNames();
                 return {
                     id: {
                         databaseId: database.id
@@ -166,13 +173,7 @@ export const getDatabasesPermissionsGrid = createSelector(
                         } :
                         { name: "View schemas", url: `/admin/permissions/databases/${database.id}/schemas`}
                 }
-            }),
-            data: databases.map(database =>
-                groups.map(group => ({
-                    native: getNativePermissions(permissions[group.id], database.id),
-                    schemas: getSchemasPermissions(permissions[group.id], database.id)
-                }))
-            )
+            })
         }
     }
 );

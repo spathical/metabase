@@ -14,6 +14,7 @@ export default class Table extends Base {
     id: number;
     display_name: string;
     db_id: number;
+    schema: ?string;
 
     database() {
         return this._entity(Database, this.db_id);
