@@ -32,7 +32,7 @@ export const updatePermission = createThunkAction(UPDATE_PERMISSION, ({ groupId,
                 dispatch(action);
             }
         }
-        return updater(getState().permissions.permissions, groupId, entityId, value);
+        return updater(groupId, entityId, value);
     }
 );
 

@@ -112,7 +112,8 @@ const GroupPermissionRow = ({ group, permissions, entity, onUpdatePermission, is
             <GroupPermissionCell
                 key={permission.id}
                 permission={permission}
-                value={permission.getter(group.id, entity.id)}
+                group={group}
+                entity={entity}
                 onUpdatePermission={(value) =>
                     onUpdatePermission({
                         groupId: group.id,
@@ -128,7 +129,13 @@ const GroupPermissionRow = ({ group, permissions, entity, onUpdatePermission, is
 
 class GroupPermissionCell extends Component {
     render() {
-        const { permission, value, onUpdatePermission, isEditable } = this.props;
+        const { permission, group, entity, onUpdatePermission } = this.props;
+
+        const value = permission.getter(group.id, entity.id);
+        const options = permission.options(group.id, entity.id);
+
+        let isEditable = this.props.isEditable && options.filter(option => option !== value).length > 0;
+
         return (
             <div className="flex-full flex layout-centered border-column-divider" style={{
                 borderColor: LIGHT_BORDER,
@@ -157,6 +164,7 @@ class GroupPermissionCell extends Component {
                 >
                     <AccessOptionList
                         value={value}
+                        options={options}
                         permission={permission}
                         onUpdatePermission={(...args) => {
                             onUpdatePermission(...args);
@@ -180,9 +188,9 @@ const AccessOption = ({ value, option, onUpdatePermission }) =>
         {getOptionUi(option).title}
     </div>
 
-const AccessOptionList = ({ value, permission, onUpdatePermission }) =>
+const AccessOptionList = ({ value, options, onUpdatePermission }) =>
     <ul className="py1">
-        { permission.options.map(option =>
+        { options.map(option =>
             <li key={option}>
                 <AccessOption value={value} option={option} onUpdatePermission={onUpdatePermission} />
             </li>

@@ -2,7 +2,8 @@
 
 import { getIn, setIn } from "icepick";
 
-import type { Database, DatabaseId } from "metabase/meta/types/Database";
+import type Database from "metabase/meta/metadata/Database";
+import type { DatabaseId } from "metabase/meta/types/Database";
 import type { SchemaName, TableId } from "metabase/meta/types/Table";
 import Metadata from "metabase/meta/metadata/Metadata";
 
@@ -167,18 +168,18 @@ function deleteIfEmpty(object: { [key: any]: any }, key: any) {
     }
 }
 
-function diffDatabasePermissions(database, newPermissions, oldPermissions, groupId): DatabasePermissionsDiff {
+function diffDatabasePermissions(newPerms: GroupsPermissions, oldPerms: GroupsPermissions, groupId: GroupId, database: Database): DatabasePermissionsDiff {
     const databaseDiff: DatabasePermissionsDiff = { grantedTables: {}, revokedTables: {} };
     // get the native permisisons for this db
-    const oldNativePerm = getNativePermission(oldPermissions, groupId, { databaseId: database.id });
-    const newNativePerm = getNativePermission(newPermissions, groupId, { databaseId: database.id });
+    const oldNativePerm = getNativePermission(oldPerms, groupId, { databaseId: database.id });
+    const newNativePerm = getNativePermission(newPerms, groupId, { databaseId: database.id });
     if (oldNativePerm !== newNativePerm) {
         databaseDiff.native = newNativePerm;
     }
     // check each table in this db
-    for (const table of database.tables) {
-        const oldFieldsPerm = getFieldsPermission(oldPermissions, groupId, { databaseId: database.id, schemaName: table.schema || "", tableId: table.id });
-        const newFieldsPerm = getFieldsPermission(newPermissions, groupId, { databaseId: database.id, schemaName: table.schema || "", tableId: table.id });
+    for (const table of database.tables()) {
+        const oldFieldsPerm = getFieldsPermission(oldPerms, groupId, { databaseId: database.id, schemaName: table.schema || "", tableId: table.id });
+        const newFieldsPerm = getFieldsPermission(newPerms, groupId, { databaseId: database.id, schemaName: table.schema || "", tableId: table.id });
         if (oldFieldsPerm !== newFieldsPerm) {
             if (oldFieldsPerm === "none") {
                 databaseDiff.revokedTables[table.id] = { name: table.display_name };
@@ -194,10 +195,10 @@ function diffDatabasePermissions(database, newPermissions, oldPermissions, group
     return databaseDiff;
 }
 
-function diffGroupPermissions(databases, newPermissions, oldPermissions, groupId): GroupPermissionsDiff {
+function diffGroupPermissions(newPerms: GroupsPermissions, oldPerms: GroupsPermissions, groupId: GroupId, metadata: Metadata): GroupPermissionsDiff {
     let groupDiff: GroupPermissionsDiff = { databases: {} };
-    for (const database of databases) {
-        groupDiff.databases[database.id] = diffDatabasePermissions(database, newPermissions, oldPermissions, groupId);
+    for (const database of metadata.databases()) {
+        groupDiff.databases[database.id] = diffDatabasePermissions(newPerms, oldPerms, groupId, database);
         deleteIfEmpty(groupDiff.databases, database.id);
         if (groupDiff.databases[database.id]) {
             groupDiff.databases[database.id].name = database.name;
@@ -207,11 +208,11 @@ function diffGroupPermissions(databases, newPermissions, oldPermissions, groupId
     return groupDiff;
 }
 
-export function diffPermissions(groups: Array<Group>, databases: Array<Database>, newPermissions: GroupsPermissions, oldPermissions: GroupsPermissions): PermissionsDiff {
+export function diffPermissions(newPerms: GroupsPermissions, oldPerms: GroupsPermissions, groups: Array<Group>, metadata: Metadata): PermissionsDiff {
     let permissionsDiff: PermissionsDiff = { groups: {} };
-    if (databases && newPermissions && oldPermissions) {
+    if (newPerms && oldPerms && metadata) {
         for (let group of groups) {
-            permissionsDiff.groups[group.id] = diffGroupPermissions(databases, newPermissions, oldPermissions, group.id);
+            permissionsDiff.groups[group.id] = diffGroupPermissions(newPerms, oldPerms, group.id, metadata);
             deleteIfEmpty(permissionsDiff.groups, group.id);
             if (permissionsDiff.groups[group.id]) {
                 permissionsDiff.groups[group.id].name = group.name;

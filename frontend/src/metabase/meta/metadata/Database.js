@@ -3,6 +3,8 @@
 import Base from "./Base";
 import Table from "./Table";
 
+import type { DatabaseId } from "../types/Database";
+
 import _ from "underscore";
 
 export default class Database extends Base {
@@ -10,6 +12,9 @@ export default class Database extends Base {
     static schema = {
         tables: [Table]
     };
+
+    id: DatabaseId;
+    name: string;
 
     table(id: number) {
         return this._entity(Table, id);
