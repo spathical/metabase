@@ -1,4 +1,5 @@
 (ns metabase.models.interface
+  ;; TODO - maybe just call this namespace `metabase.models`?
   (:require [clojure.tools.logging :as log]
             [cheshire.core :as json]
             (metabase [config :as config]

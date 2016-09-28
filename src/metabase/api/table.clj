@@ -4,8 +4,9 @@
             [metabase.api.common :refer :all]
             [metabase.db :as db]
             [metabase.driver :as driver]
-            (metabase.models [hydrate :refer :all]
-                             [field :refer [Field]]
+            (metabase.models [field :refer [Field]]
+                             [hydrate :refer :all]
+                             [interface :as models]
                              [table :refer [Table] :as table])
             [metabase.sync-database :as sync-database]))
 
@@ -22,13 +23,12 @@
 (defendpoint GET "/"
   "Get all `Tables`."
   []
-  (-> (db/select Table, :active true, {:order-by [[:name :asc]]})
-      (hydrate :db)
-      ;; if for some reason a Table doesn't have rows set then set it to 0 so UI doesn't barf
-      (#(map (fn [table]
-               (cond-> table
-                 (not (:rows table)) (assoc :rows 0)))
-         %))))
+  (for [table (-> (db/select Table, :active true, {:order-by [[:name :asc]]})
+                  (hydrate :db))
+        :when (models/can-read? table)]
+    ;; if for some reason a Table doesn't have rows set then set it to 0 so UI doesn't barf. TODO - should that be part of `post-select` instead?
+    (update table :rows (fn [n]
+                          (or n 0)))))
 
 (defendpoint GET "/:id"
   "Get `Table` with ID."
