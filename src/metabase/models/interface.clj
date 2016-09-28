@@ -347,13 +347,15 @@
    (and object
         ((resolve 'metabase.models.permissions/set-has-full-permissions-for-set?) (current-user-permissions-set) (perms-objects-set object read-or-write)))))
 
-(defn current-user-has-full-permissions-for-set-and-is-superuser?
+(defn and-is-superuser?
+  "Returns a version of F that also checks to make sure the current user is a superuser."
+  [f]
+  (fn [& args]
+    (and (superuser?)
+         (apply f args))))
+
+(def ^{:arglists '([read-or-write entity object-id] [read-or-write object])}
+  current-user-has-full-permissions-for-set-and-is-superuser?
   "Implementation of `can-read?`/`can-write?` for the new permissions system.
    This is the same as `current-user-has-full-permissions-for-set?` but has the additional requirement that the current user be a superuser."
-  (^Boolean [read-or-write entity object-id]
-   (and (superuser?)
-        (current-user-has-full-permissions-for-set? read-or-write entity object-id)))
-  (^Boolean [read-or-write object]
-   (and object
-        (superuser?)
-        (current-user-has-full-permissions-for-set? read-or-write object))))
+  (and-is-superuser? current-user-has-full-permissions-for-set?))
