@@ -77,7 +77,8 @@
   (db/select [Table :id :db_id :schema :name]
     :db_id       db-id
     :active      true
-    :%lower.name [:like (str (s/lower-case prefix) "%")]))
+    :%lower.name [:like (str (s/lower-case prefix) "%")]
+    {:order-by [[:%lower.name :asc]]}))
 
 (defn- autocomplete-fields [db-id prefix]
   (db/select [Field :name :base_type :special_type :id :table_id [:table.name :table_name]]
@@ -85,7 +86,9 @@
     :%lower.metabase_field.name     [:like (str (s/lower-case prefix) "%")]
     :metabase_field.visibility_type [:not-in ["sensitive" "retired"]]
     :table.db_id                    db-id
-    {:left-join [[:metabase_table :table] [:= :table.id :metabase_field.table_id]]}))
+    {:order-by  [[:%lower.metabase_field.name :asc]
+                 [:%lower.table.name :asc]]
+     :left-join [[:metabase_table :table] [:= :table.id :metabase_field.table_id]]}))
 
 (defn- autocomplete-results [tables fields]
   (concat (for [{table-name :name} tables]
