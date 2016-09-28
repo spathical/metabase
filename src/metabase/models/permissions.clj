@@ -33,7 +33,7 @@
 ;;; ---------------------------------------- Validation ----------------------------------------
 
 (def ^:private ^:const valid-object-path-patterns
-  [#"^/db/(\d+)/$"                                ; permissions for the entire DB
+  [#"^/db/(\d+)/$"                                ; permissions for the entire DB -- native and all schemas
    #"^/db/(\d+)/native/$"                         ; permissions to create new native queries for the DB
    #"^/db/(\d+)/native/read/$"                    ; permissions to read the results of existing native queries (i.e. view existing cards) for the DB
    #"^/db/(\d+)/schema/$"                         ; permissions for all schemas in the DB
@@ -41,9 +41,11 @@
    #"^/db/(\d+)/schema/([^\\/]*)/table/(\d+)/$"]) ; permissions for a specific table
 
 (defn valid-object-path?
-  "Does OBJECT-PATH follow a known, allowed format?"
+  "Does OBJECT-PATH follow a known, allowed format to an *object*?
+   (The root path, \"/\", is not considered an object; this returns `false` for it)."
   ^Boolean [^String object-path]
-  (boolean (when (seq object-path)
+  (boolean (when (and (string? object-path)
+                      (seq object-path))
              (some (u/rpartial re-matches object-path)
                    valid-object-path-patterns))))
 
@@ -76,9 +78,9 @@
 
 (defn object-path
   "Return the permissions path for a database, schema, or table."
-  (^String [database-id]                      (str "/db/" database-id "/"))
-  (^String [database-id schema-name]          (str (object-path database-id) "schema/" schema-name "/"))
-  (^String [database-id schema-name table-id] (str (object-path database-id schema-name) "table/" table-id "/" )))
+  (^String [database-id]                      {:pre [(integer? database-id)], :post (valid-object-path? %)} (str "/db/" database-id "/"))
+  (^String [database-id schema-name]          {:pre [(u/maybe? string? schema-name)]}                       (str (object-path database-id) "schema/" schema-name "/"))
+  (^String [database-id schema-name table-id] {:pre [(integer? table-id)]}                                  (str (object-path database-id schema-name) "table/" table-id "/" )))
 
 (defn native-readwrite-path
   "Return the native query read/write permissions path for a database.
@@ -142,7 +144,7 @@
   (u/prog1 (every? (partial set-has-full-permissions? permissions-set)
                    object-paths-set)
     ;; NOCOMMIT
-    (println (format "\nset-has-full-permissions-for-set?\n%s\nfor %s\n-> %s" (u/format-color 'green permissions-set) (u/format-color 'red object-paths-set) (u/format-color 'blue <>)))))
+    #_(println (format "\nset-has-full-permissions-for-set?\n%s\nfor %s\n-> %s" (u/format-color 'green permissions-set) (u/format-color 'red object-paths-set) (u/format-color 'blue <>)))))
 
 
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+

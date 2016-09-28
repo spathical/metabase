@@ -3,9 +3,143 @@
             [metabase.models.permissions :as perms]))
 
 
-;;; ------------------------------------------------------------ TODO - valid-object-path? ------------------------------------------------------------
+;;; ------------------------------------------------------------ valid-object-path? ------------------------------------------------------------
 
-;;; ------------------------------------------------------------ TODO - object-path ------------------------------------------------------------
+(expect (perms/valid-object-path? "/db/1/"))
+(expect (perms/valid-object-path? "/db/1/native/"))
+(expect (perms/valid-object-path? "/db/1/native/read/"))
+(expect (perms/valid-object-path? "/db/1/schema/"))
+(expect (perms/valid-object-path? "/db/1/schema/public/"))
+(expect (perms/valid-object-path? "/db/1/schema/PUBLIC/"))
+(expect (perms/valid-object-path? "/db/1/schema//"))
+(expect (perms/valid-object-path? "/db/1/schema/1234/"))
+(expect (perms/valid-object-path? "/db/1/schema/public/table/1/"))
+(expect (perms/valid-object-path? "/db/1/schema/PUBLIC/table/1/"))
+(expect (perms/valid-object-path? "/db/1/schema//table/1/"))
+(expect (perms/valid-object-path? "/db/1/schema/public/table/1/"))
+(expect (perms/valid-object-path? "/db/1/schema/PUBLIC/table/1/"))
+(expect (perms/valid-object-path? "/db/1/schema//table/1/"))
+(expect (perms/valid-object-path? "/db/1/schema/1234/table/1/"))
+
+;; missing trailing slashes
+(expect false (perms/valid-object-path? "/db/1"))
+(expect false (perms/valid-object-path? "/db/1/native"))
+(expect false (perms/valid-object-path? "/db/1/native/read"))
+(expect false (perms/valid-object-path? "/db/1/schema"))
+(expect false (perms/valid-object-path? "/db/1/schema/public"))
+(expect false (perms/valid-object-path? "/db/1/schema/PUBLIC"))
+(expect false (perms/valid-object-path? "/db/1/schema"))
+(expect false (perms/valid-object-path? "/db/1/schema/public/db/1"))
+(expect false (perms/valid-object-path? "/db/1/schema/PUBLIC/db/1"))
+(expect false (perms/valid-object-path? "/db/1/schema//db/1"))
+(expect false (perms/valid-object-path? "/db/1/schema/public/db/1/table/2"))
+(expect false (perms/valid-object-path? "/db/1/schema/PUBLIC/db/1/table/2"))
+(expect false (perms/valid-object-path? "/db/1/schema//db/1/table/2"))
+
+;; too many slashes
+(expect false (perms/valid-object-path? "/db/1//"))
+(expect false (perms/valid-object-path? "/db/1/native//"))
+(expect false (perms/valid-object-path? "/db/1/native/read//"))
+(expect false (perms/valid-object-path? "/db/1/schema/public//"))
+(expect false (perms/valid-object-path? "/db/1/schema/PUBLIC//"))
+(expect false (perms/valid-object-path? "/db/1/schema///"))
+(expect false (perms/valid-object-path? "/db/1/schema/public/db/1//"))
+(expect false (perms/valid-object-path? "/db/1/schema/PUBLIC/db/1//"))
+(expect false (perms/valid-object-path? "/db/1/schema//db/1//"))
+(expect false (perms/valid-object-path? "/db/1/schema/public/db/1/table/2//"))
+(expect false (perms/valid-object-path? "/db/1/schema/PUBLIC/db/1/table/2//"))
+(expect false (perms/valid-object-path? "/db/1/schema//db/1/table/2//"))
+
+;; not referencing a specific object. These might be valid permissions paths but not valid paths to object  s
+(expect false (perms/valid-object-path? "/"))
+(expect false (perms/valid-object-path? "/db/"))
+(expect false (perms/valid-object-path? "/db/1/schema/public/db/"))
+(expect false (perms/valid-object-path? "/db/1/schema/public/db/1/table/"))
+
+;; duplicate path components
+(expect false (perms/valid-object-path? "/db/db/1/"))
+(expect false (perms/valid-object-path? "/db/1/native/native/"))
+(expect false (perms/valid-object-path? "/db/1/native/read/read/"))
+(expect false (perms/valid-object-path? "/db/1/schema/schema/public/"))
+(expect false (perms/valid-object-path? "/db/1/schema/public/public/"))
+(expect false (perms/valid-object-path? "/db/1/schema/public/db/1/table/table/"))
+(expect false (perms/valid-object-path? "/db/1/schema/public/db/1/table/table/2/"))
+
+;; missing beginning slash
+(expect false (perms/valid-object-path? "db/1/"))
+(expect false (perms/valid-object-path? "db/1/native/"))
+(expect false (perms/valid-object-path? "db/1/native/read/"))
+(expect false (perms/valid-object-path? "db/1/schema/public/"))
+(expect false (perms/valid-object-path? "db/1/schema/PUBLIC/"))
+(expect false (perms/valid-object-path? "db/1/schema//"))
+(expect false (perms/valid-object-path? "db/1/schema/public/db/1/"))
+(expect false (perms/valid-object-path? "db/1/schema/PUBLIC/db/1/"))
+(expect false (perms/valid-object-path? "db/1/schema//db/1/"))
+(expect false (perms/valid-object-path? "db/1/schema/public/db/1/table/2/"))
+(expect false (perms/valid-object-path? "db/1/schema/PUBLIC/db/1/table/2/"))
+(expect false (perms/valid-object-path? "db/1/schema//db/1/table/2/"))
+
+;; non-numeric IDs
+(expect false (perms/valid-object-path? "/db/toucans/"))
+(expect false (perms/valid-object-path? "/db/1/schema/public/table/orders/"))
+
+;; things that aren't even strings
+(expect false (perms/valid-object-path? nil))
+(expect false (perms/valid-object-path? {}))
+(expect false (perms/valid-object-path? []))
+(expect false (perms/valid-object-path? true))
+(expect false (perms/valid-object-path? false))
+(expect false (perms/valid-object-path? (keyword "/db/1/")))
+(expect false (perms/valid-object-path? 1234))
+
+;; other invalid paths
+(expect false (perms/valid-object-path? "/db/1/table/"))
+(expect false (perms/valid-object-path? "/db/1/table/2/"))
+(expect false (perms/valid-object-path? "/db/1/native/schema/"))
+(expect false (perms/valid-object-path? "/db/1/native/write/"))
+(expect false (perms/valid-object-path? "/db/1/schema/native/read/"))
+(expect false (perms/valid-object-path? "/rainforest/"))
+(expect false (perms/valid-object-path? "/rainforest/toucans/"))
+(expect false (perms/valid-object-path? ""))
+(expect false (perms/valid-object-path? "//"))
+(expect false (perms/valid-object-path? "/database/1/"))
+(expect false (perms/valid-object-path? "/DB/1/"))
+(expect false (perms/valid-object-path? "/db/1/SCHEMA/"))
+(expect false (perms/valid-object-path? "/db/1/SCHEMA/PUBLIC/"))
+(expect false (perms/valid-object-path? "/db/1/schema/PUBLIC/TABLE/1/"))
+
+
+;;; ------------------------------------------------------------ object-path ------------------------------------------------------------
+
+(expect "/db/1/" (perms/object-path 1))
+(expect "/db/1/schema/public/" (perms/object-path 1 "public"))
+(expect "/db/1/schema/public/table/2/" (perms/object-path 1 "public" 2))
+
+;; invalid input should throw an exception
+(expect clojure.lang.ArityException (perms/object-path))
+(expect clojure.lang.ArityException (perms/object-path 1 "public" 2 3))
+
+(expect AssertionError (perms/object-path nil))
+(expect AssertionError (perms/object-path "sales"))
+(expect AssertionError (perms/object-path :sales))
+(expect AssertionError (perms/object-path true))
+(expect AssertionError (perms/object-path false))
+(expect AssertionError (perms/object-path {}))
+(expect AssertionError (perms/object-path []))
+(expect AssertionError (perms/object-path :sales))
+(expect AssertionError (perms/object-path 1 true))
+(expect AssertionError (perms/object-path 1 false))
+(expect AssertionError (perms/object-path 1 {}))
+(expect AssertionError (perms/object-path 1 []))
+(expect AssertionError (perms/object-path 1 :sales))
+(expect AssertionError (perms/object-path 1 "public" nil))
+(expect AssertionError (perms/object-path 1 "public" "sales"))
+(expect AssertionError (perms/object-path 1 "public" :sales))
+(expect AssertionError (perms/object-path 1 "public" true))
+(expect AssertionError (perms/object-path 1 "public" false))
+(expect AssertionError (perms/object-path 1 "public"{}))
+(expect AssertionError (perms/object-path 1 "public"[]))
+
 
 ;;; ------------------------------------------------------------ TODO - native-readwrite-path ------------------------------------------------------------
 
@@ -47,13 +181,97 @@
 (expect false (perms/is-partial-permissions-for-object? "/db/1/" "/db/2/native/read/"))
 
 
-;;; ------------------------------------------------------------ TODO - is-permissions-set? ------------------------------------------------------------
+;;; ------------------------------------------------------------ is-permissions-set? ------------------------------------------------------------
+
+(expect (perms/is-permissions-set? #{}))
+(expect (perms/is-permissions-set? #{"/"}))
+(expect (perms/is-permissions-set? #{"/db/1/"}))
+(expect (perms/is-permissions-set? #{"/db/1/"}))
+(expect (perms/is-permissions-set? #{"/db/1/schema/"}))
+(expect (perms/is-permissions-set? #{"/db/1/schema/public/"}))
+(expect (perms/is-permissions-set? #{"/db/1/schema/public/table/1/"}))
+(expect (perms/is-permissions-set? #{"/" "/db/2/"}))
+(expect (perms/is-permissions-set? #{"/db/1/" "/db/2/schema/"}))
+(expect (perms/is-permissions-set? #{"/db/1/schema/" "/db/2/schema/public/"}))
+(expect (perms/is-permissions-set? #{"/db/1/schema/public/" "/db/2/schema/public/table/3/"}))
+(expect (perms/is-permissions-set? #{"/db/1/schema/public/table/2/" "/db/3/schema/public/table/4/"}))
+
+;; things that aren't sets
+(expect false (perms/is-permissions-set? nil))
+(expect false (perms/is-permissions-set? {}))
+(expect false (perms/is-permissions-set? []))
+(expect false (perms/is-permissions-set? true))
+(expect false (perms/is-permissions-set? false))
+(expect false (perms/is-permissions-set? ""))
+(expect false (perms/is-permissions-set? 1234))
+(expect false (perms/is-permissions-set? :wow))
+
+;; things that contain invalid paths
+(expect false (perms/is-permissions-set? #{"/" "/toucans/"}))
+(expect false (perms/is-permissions-set? #{"/db/1/" "//"}))
+(expect false (perms/is-permissions-set? #{"/db/1/" "/db/1/table/2/"}))
+(expect false (perms/is-permissions-set? #{"/db/1/native/schema/"}))
+(expect false (perms/is-permissions-set? #{"/db/1/schema/public/" "/kanye/"}))
+(expect false (perms/is-permissions-set? #{"/db/1/schema/public/table/1/" "/ocean/"}))
+
 
 ;;; ------------------------------------------------------------ TODO - set-has-full-permissions? ------------------------------------------------------------
 
 ;;; ------------------------------------------------------------ TODO - set-has-partial-permissions? ------------------------------------------------------------
 
-;;; ------------------------------------------------------------ TODO - set-has-full-permissions-for-set? ------------------------------------------------------------
+;;; ------------------------------------------------------------ set-has-full-permissions-for-set? ------------------------------------------------------------
+
+(expect (perms/set-has-full-permissions-for-set? #{"/"}
+                                                 #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}))
+
+(expect (perms/set-has-full-permissions-for-set? #{"/db/1/" "/db/3/"}
+                                                 #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}))
+
+(expect (perms/set-has-full-permissions-for-set? #{"/db/1/" "/db/3/"}
+                                                 #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}))
+
+(expect (perms/set-has-full-permissions-for-set? #{"/db/1/schema/public/" "/db/3/schema//"}
+                                                 #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}))
+
+(expect (perms/set-has-full-permissions-for-set? #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}
+                                                 #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}))
+
+(expect false (perms/set-has-full-permissions-for-set? #{}
+                                                       #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}))
+
+(expect false (perms/set-has-full-permissions-for-set? #{"/db/2/"}
+                                                       #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}))
+
+(expect false (perms/set-has-full-permissions-for-set? #{"/db/1/" "/db/2/"}
+                                                       #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}))
+
+(expect false (perms/set-has-full-permissions-for-set? #{"/db/1/schema/public/" "/db/3/schema/public/"}
+                                                       #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}))
+
+(expect false (perms/set-has-full-permissions-for-set? #{"/db/1/schema/public/table/2/" "/db/3/schema//table/5/"}
+                                                       #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}))
+
+;; If either set is invalid, it should throw an exception
+
+(expect AssertionError (perms/set-has-full-permissions-for-set? #{"/" "/toucans/"}
+                                                                #{"/db/1/"}))
+
+(expect AssertionError (perms/set-has-full-permissions-for-set? #{"/db/1/" "//"}
+                                                                #{"/db/1/"}))
+
+(expect AssertionError (perms/set-has-full-permissions-for-set? #{"/db/1/" "/db/1/table/2/"}
+                                                                #{"/db/1/"}))
+
+(expect AssertionError (perms/set-has-full-permissions-for-set? #{"/db/1/"}
+                                                                #{"/db/1/native/schema/"}))
+
+(expect AssertionError (perms/set-has-full-permissions-for-set? #{"/db/1/"}
+                                                                #{"/db/1/schema/public/" "/kanye/"}))
+
+(expect AssertionError (perms/set-has-full-permissions-for-set? #{"/db/1/"}
+                                                                #{"/db/1/schema/public/table/1/" "/ocean/"}))
 
 
-;;; ------------------------------------------------------------ TODO - permissions-graph stuff ------------------------------------------------------------
+;;; +----------------------------------------------------------------------------------------------------------------------------------------------------------------+
+;;; |                                                                 TODO - Permissions Graph Tests                                                                 |
+;;; +----------------------------------------------------------------------------------------------------------------------------------------------------------------+
