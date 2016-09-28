@@ -1,6 +1,6 @@
 (ns metabase.models.permissions
-  (:require [clojure.data :as data]
-            [clojure.core.match :refer [match]]
+  (:require [clojure.core.match :refer [match]]
+            [clojure.data :as data]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [medley.core :as m]
@@ -8,7 +8,7 @@
             [metabase.api.common :refer [*current-user-id*]]
             [metabase.db :as db]
             (metabase.models [interface :as i]
-                             [permissions-group :as groups]
+                             [permissions-group :as group]
                              [permissions-revision :refer [PermissionsRevision] :as perms-revision])
             [metabase.util :as u]
             [metabase.util.honeysql-extensions :as hx]))
@@ -51,7 +51,7 @@
 (defn- assert-not-admin-group
   "Check to make sure the `:group_id` for PERMISSIONS entry isn't the admin group."
   [{:keys [group_id]}]
-  (when (and (= group_id (:id (groups/admin)))
+  (when (and (= group_id (:id (group/admin)))
              (not *allow-admin-permissions-changes*))
     (throw (ex-info "You cannot create or revoke permissions for the 'Admin' group."
              {:status-code 400}))))
@@ -135,10 +135,8 @@
 (defn ^Boolean set-has-full-permissions-for-set?
   "Do the permissions paths in PERMISSIONS-SET grant access to all the object paths in OBJECT-PATHS-SET?"
   [permissions-set object-paths-set]
-  {:pre [(or (is-permissions-set? permissions-set)
-             (println "Invalid permissions-set:" permissions-set))
-         (or (is-permissions-set? object-paths-set)
-             (println "Invalid permissions-set:" object-paths-set))]}
+  {:pre [(or (is-permissions-set? permissions-set)  (println "Invalid permissions-set:" permissions-set))
+         (or (is-permissions-set? object-paths-set) (println "Invalid permissions-set:" object-paths-set))]}
   (u/prog1 (every? (partial set-has-full-permissions? permissions-set)
                    object-paths-set)
     ;; NOCOMMIT
@@ -153,13 +151,14 @@
 
 (defn- pre-insert [permissions]
   (u/prog1 permissions
-    (assert-valid permissions)))
+    (assert-valid permissions)
+    (log/info (u/format-color 'green "Granting permissions for group %d: %s" (:group_id permissions) (:object permissions)))))
 
-(defn- pre-update [permissions]
-  (u/prog1 permissions
-    (assert-valid permissions)))
+(defn- pre-update [_]
+  (throw (Exception. "You cannot update a permissions entry! Delete it and create a new one.")))
 
 (defn- pre-cascade-delete [permissions]
+  (log/info (u/format-color 'red "Revoking permissions for group %d: %s" (:group_id permissions) (:object permissions)))
   (assert-not-admin-group permissions))
 
 

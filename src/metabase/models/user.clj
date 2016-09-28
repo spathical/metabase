@@ -1,5 +1,6 @@
 (ns metabase.models.user
   (:require [clojure.string :as s]
+            [clojure.tools.logging :as log]
             [cemerick.friend.credentials :as creds]
             [metabase.db :as db]
             [metabase.email.messages :as email]
@@ -39,10 +40,12 @@
   (u/prog1 user
     ;; add the newly created user to the magic perms groups
     (binding [perm-membership/*allow-changing-default-group-members* true]
+      (log/info (format "Adding user %d to Default permissions group..." user-id))
       (db/insert! PermissionsGroupMembership
         :user_id  user-id
         :group_id (:id (perm-group/default))))
     (when superuser?
+      (log/info (format "Adding user %d to Admin permissions group..." user-id))
       (db/insert! PermissionsGroupMembership
         :user_id  user-id
         :group_id (:id (perm-group/admin))))))

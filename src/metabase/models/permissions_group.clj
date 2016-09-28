@@ -1,5 +1,6 @@
 (ns metabase.models.permissions-group
-  (:require [clojure.string :as s]
+  (:require [clojure.tools.logging :as log]
+            [clojure.string :as s]
             [metabase.db :as db]
             [metabase.models.interface :as i]
             [metabase.util :as u]))
@@ -13,8 +14,9 @@
   (memoize (fn []
              (or (db/select-one PermissionsGroup
                    :name group-name)
-                 (db/insert! PermissionsGroup
-                   :name group-name)))))
+                 (u/prog1 (db/insert! PermissionsGroup
+                            :name group-name)
+                   (log/info (u/format-color 'green "Created magic permissions group '%s' (ID = %d)" group-name (:id <>))))))))
 
 (def ^{:arglists '([])} ^metabase.models.permissions_group.PermissionsGroupInstance
   default
