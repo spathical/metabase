@@ -226,19 +226,21 @@
 
 (defendpoint GET "/:id/favorite"
   "Has current user favorited this `Card`?"
-  [id]
-  {:favorite (boolean (when *current-user-id*
-                        (db/exists? CardFavorite :card_id id, :owner_id *current-user-id*)))})
+  [card-id]
+  (read-check Card card-id)
+  {:favorite (db/exists? CardFavorite :card_id card-id, :owner_id *current-user-id*)})
 
 (defendpoint POST "/:card-id/favorite"
   "Favorite a Card."
   [card-id]
+  (read-check Card card-id)
   (db/insert! CardFavorite :card_id card-id, :owner_id *current-user-id*))
 
 
 (defendpoint DELETE "/:card-id/favorite"
   "Unfavorite a Card."
   [card-id]
+  (read-check Card card-id)
   (let-404 [id (db/select-one-id CardFavorite :card_id card-id, :owner_id *current-user-id*)]
     (db/cascade-delete! CardFavorite, :id id)))
 
