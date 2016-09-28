@@ -42,7 +42,6 @@
 (def ^:private ^:const usernames
   (set (keys user->info)))
 
-
 ;;; ------------------------------------------------------------ Test User Fns ------------------------------------------------------------
 
 (defn- fetch-or-create-user!

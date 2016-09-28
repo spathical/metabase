@@ -32,7 +32,7 @@
 
 (def ^:dynamic *current-user-permissions-set*
   "Delay to the set of permissions granted to the current user."
-  (atom nil))
+  (atom #{}))
 
 
 ;;; ## CONDITIONAL RESPONSE FUNCTIONS / MACROS

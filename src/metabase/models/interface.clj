@@ -344,7 +344,8 @@
    (or (current-user-has-root-permissions?)
        (current-user-has-full-permissions-for-set? read-or-write (entity object-id))))
   (^Boolean [read-or-write object]
-   ((resolve 'metabase.models.permissions/set-has-full-permissions-for-set?) (current-user-permissions-set) (perms-objects-set object read-or-write))))
+   (and object
+        ((resolve 'metabase.models.permissions/set-has-full-permissions-for-set?) (current-user-permissions-set) (perms-objects-set object read-or-write)))))
 
 (defn current-user-has-full-permissions-for-set-and-is-superuser?
   "Implementation of `can-read?`/`can-write?` for the new permissions system.
@@ -353,5 +354,6 @@
    (and (superuser?)
         (current-user-has-full-permissions-for-set? read-or-write entity object-id)))
   (^Boolean [read-or-write object]
-   (and (superuser?)
+   (and object
+        (superuser?)
         (current-user-has-full-permissions-for-set? read-or-write object))))

@@ -152,13 +152,13 @@
 (defn- pre-insert [permissions]
   (u/prog1 permissions
     (assert-valid permissions)
-    (log/info (u/format-color 'green "Granting permissions for group %d: %s" (:group_id permissions) (:object permissions)))))
+    #_(log/info (u/format-color 'green "Granting permissions for group %d: %s" (:group_id permissions) (:object permissions)))))
 
 (defn- pre-update [_]
   (throw (Exception. "You cannot update a permissions entry! Delete it and create a new one.")))
 
 (defn- pre-cascade-delete [permissions]
-  (log/info (u/format-color 'red "Revoking permissions for group %d: %s" (:group_id permissions) (:object permissions)))
+  #_(log/info (u/format-color 'red "Revoking permissions for group %d: %s" (:group_id permissions) (:object permissions)))
   (assert-not-admin-group permissions))
 
 

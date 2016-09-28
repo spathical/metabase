@@ -40,12 +40,12 @@
   (u/prog1 user
     ;; add the newly created user to the magic perms groups
     (binding [perm-membership/*allow-changing-default-group-members* true]
-      (log/info (format "Adding user %d to Default permissions group..." user-id))
+      #_(log/info (format "Adding user %d to Default permissions group..." user-id))
       (db/insert! PermissionsGroupMembership
         :user_id  user-id
         :group_id (:id (perm-group/default))))
     (when superuser?
-      (log/info (format "Adding user %d to Admin permissions group..." user-id))
+      #_(log/info (format "Adding user %d to Admin permissions group..." user-id))
       (db/insert! PermissionsGroupMembership
         :user_id  user-id
         :group_id (:id (perm-group/admin))))))
@@ -170,10 +170,9 @@
 (defn permissions-set
   "Return a set of all permissions object paths that USER-OR-ID has been granted access to."
   [user-or-id]
-  (when-let [user-id (u/get-id user-or-id)]
-    (when-let [paths (seq (map :object (db/query {:select [:p.object]
-                                                  :from   [[:permissions_group_membership :pgm]]
-                                                  :join   [[:permissions_group :pg] [:= :pgm.group_id :pg.id]
-                                                           [:permissions :p]        [:= :p.group_id :pgm.id]]
-                                                  :where  [:= :user_id user-id]})))]
-      (set paths))))
+  (set (when-let [user-id (u/get-id user-or-id)]
+         (map :object (db/query {:select [:p.object]
+                                 :from   [[:permissions_group_membership :pgm]]
+                                 :join   [[:permissions_group :pg] [:= :pgm.group_id :pg.id]
+                                          [:permissions :p]        [:= :p.group_id :pgm.id]]
+                                 :where  [:= :user_id user-id]})))))

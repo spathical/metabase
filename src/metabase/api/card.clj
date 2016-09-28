@@ -217,7 +217,6 @@
 (defendpoint DELETE "/:id"
   "Delete a `Card`."
   [id]
-  (write-check Card id)
   (let-404 [card (Card id)]
     (write-check card)
     (u/prog1 (db/cascade-delete! Card,:id id)
