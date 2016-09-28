@@ -161,7 +161,7 @@
     :%lower.name [:like (str (s/lower-case prefix) "%")]))
 
 (defn- autocomplete-fields [db-id prefix]
-  (db/select [Field :name :base_type :special_type :id [:table.name :table_name]]
+  (db/select [Field :name :base_type :special_type :id :table_id [:table.name :table_name]]
     :metabase_field.active          true
     :%lower.metabase_field.name     [:like (str (s/lower-case prefix) "%")]
     :metabase_field.visibility_type [:not-in ["sensitive" "retired"]]
@@ -179,8 +179,8 @@
                          (str " " special_type)))])))
 
 (defn- autocomplete-suggestions [db-id prefix]
-  (let [tables (autocomplete-tables db-id prefix)
-        fields (autocomplete-fields db-id prefix)]
+  (let [tables (filter models/can-read? (autocomplete-tables db-id prefix))
+        fields (filter models/can-read? (autocomplete-fields db-id prefix))]
     (autocomplete-results tables fields)))
 
 (defendpoint GET "/:id/autocomplete_suggestions"
