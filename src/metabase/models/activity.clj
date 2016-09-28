@@ -21,8 +21,8 @@
   i/IEntity
   (merge i/IEntityDefaults
          {:types       (constantly {:details :json, :topic :keyword})
-          :can-read?   i/publicly-readable?
-          :can-write?  i/publicly-writeable?
+          :can-read?   (constantly true)
+          :can-write?  (constantly true)
           :pre-insert  pre-insert}))
 
 

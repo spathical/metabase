@@ -30,8 +30,8 @@
   (merge i/IEntityDefaults
          {:timestamped?       (constantly true)
           :types              (constantly {:description :clob, :parameters :json})
-          :can-read?          i/publicly-readable?
-          :can-write?         i/publicly-writeable?
+          :can-read?          (constantly true)
+          :can-write?         (constantly true)
           :pre-cascade-delete pre-cascade-delete
           :pre-insert         pre-insert}))
 

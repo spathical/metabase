@@ -6,38 +6,6 @@
                       [util :as u])
             [metabase.models.common :as common]))
 
-;;; ------------------------------------------------------------ OLD Permissions System ------------------------------------------------------------
-
-(defn superuser?
-  "Is `*current-user*` is a superuser? Ignores args.
-   Intended for use as an implementation of `can-read?` and/or `can-write?`."
-  [& _]
-  @(resolve 'metabase.api.common/*is-superuser?*))
-
-(defn- ^:deprecated creator?
-  "Did the current user create this object?"
-  [{:keys [creator_id]}]
-  {:pre [creator_id]}
-  (= creator_id @(resolve 'metabase.api.common/*current-user-id*)))
-
-(defn- ^:deprecated publicly-?
-  ([perms {:keys [public_perms], :as obj}]
-   {:pre [public_perms]}
-   (or (>= public_perms perms)
-       (creator? obj)
-       (superuser?)))
-  ([perms entity id]
-   (or (superuser?)
-       (publicly-? perms (entity id)))))
-
-(def ^{:arglists '([obj] [entity id])} ^:deprecated publicly-readable?
-  "Implementation of `can-read?` that returns `true` if `*current-user*` is a superuser, the person who created OBJ, or if OBJ has read `:public_perms`."
-  (partial publicly-? common/perms-read))
-
-(def ^{:arglists '([obj] [entity id])} ^:deprecated publicly-writeable?
-  "Implementation of `can-write?` that returns `true` if `*current-user*` is a superuser, the person who created OBJ, or if OBJ has readwrite `:public_perms`."
-  (partial publicly-? common/perms-readwrite))
-
 
 ;;; ------------------------------------------------------------ Entity ------------------------------------------------------------
 
@@ -88,8 +56,7 @@
      *  `(constantly true)`
      *  `superuser?`
      *  `(partial current-user-has-full-permissions? :read)` (you must also implement `perms-objects-set` to use this)
-     *  `(partial current-user-has-partial-permissions? :read)` (you must also implement `perms-objects-set` to use this)
-     *  `publicly-readable?` (deprecated)")
+     *  `(partial current-user-has-partial-permissions? :read)` (you must also implement `perms-objects-set` to use this)")
 
   (^{:hydrate :can_write} can-write? ^Boolean [instance], ^Boolean [entity, ^Integer id]
    "Return whether `*current-user*` has *write* permissions for an object. You should use one of these implmentations:
@@ -97,8 +64,7 @@
      *  `(constantly true)`
      *  `superuser?`
      *  `(partial current-user-has-full-permissions? :write)` (you must also implement `perms-objects-set` to use this)
-     *  `(partial current-user-has-partial-permissions? :write)` (you must also implement `perms-objects-set` to use this)
-     *  `publicly-writeable?` (deprecated)")
+     *  `(partial current-user-has-partial-permissions? :write)` (you must also implement `perms-objects-set` to use this)")
 
   (default-fields ^clojure.lang.Sequential [this]
     "Return a sequence of keyword field names that should be fetched by default when calling `select` or invoking the entity (e.g., `(Database 1)`).")
@@ -334,6 +300,13 @@
 
 
 ;;; ------------------------------------------------------------ New Permissions Stuff ------------------------------------------------------------
+
+(defn superuser?
+  "Is `*current-user*` is a superuser? Ignores args.
+   Intended for use as an implementation of `can-read?` and/or `can-write?`."
+  [& _]
+  @(resolve 'metabase.api.common/*is-superuser?*))
+
 
 (defn- current-user-permissions-set []
   @@(resolve 'metabase.api.common/*current-user-permissions-set*))

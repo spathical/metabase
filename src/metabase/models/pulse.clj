@@ -39,8 +39,8 @@
   (merge i/IEntityDefaults
          {:hydration-keys     (constantly [:pulse])
           :timestamped?       (constantly true)
-          :can-read?          i/publicly-readable?
-          :can-write?         i/publicly-writeable?
+          :can-read?          (constantly true)
+          :can-write?         (constantly true)
           :pre-insert         pre-insert
           :pre-cascade-delete pre-cascade-delete}))
 
