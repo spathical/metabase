@@ -342,7 +342,7 @@
    (READ-OR-WRITE is either `:read` or `:write` and passed to `perms-objects-set`; you'll usually want to partially bind it in the implementation map)."
   (^Boolean [read-or-write entity object-id]
    (or (current-user-has-root-permissions?)
-       (current-user-has-full-permissions-for-set? read-or-write (entity object-id))))
+       (current-user-has-full-permissions-for-set? read-or-write )))
   (^Boolean [read-or-write object]
    (and object
         ((resolve 'metabase.models.permissions/set-has-full-permissions-for-set?) (current-user-permissions-set) (perms-objects-set object read-or-write)))))

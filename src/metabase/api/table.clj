@@ -33,9 +33,8 @@
 (defendpoint GET "/:id"
   "Get `Table` with ID."
   [id]
-  (->404 (Table id)
-         read-check
-         (hydrate :db :pk_field)))
+  (-> (read-check Table id)
+      (hydrate :db :pk_field)))
 
 (defendpoint PUT "/:id"
   "Update `Table` with ID."
@@ -57,9 +56,8 @@
 (defendpoint GET "/:id/fields"
   "Get all `Fields` for `Table` with ID."
   [id]
-  (let-404 [table (Table id)]
-    (read-check table)
-    (db/select Field, :table_id id, :visibility_type [:not-in ["sensitive" "retired"]], {:order-by [[:name :asc]]})))
+  (read-check Table id)
+  (db/select Field, :table_id id, :visibility_type [:not-in ["sensitive" "retired"]], {:order-by [[:name :asc]]}))
 
 (defendpoint GET "/:id/query_metadata"
   "Get metadata about a `Table` useful for running queries.
@@ -69,39 +67,33 @@
   will any of its corresponding values be returned. (This option is provided for use in the Admin Edit Metadata page)."
   [id include_sensitive_fields]
   {include_sensitive_fields String->Boolean}
-  (->404 (Table id)
-         read-check
-         (hydrate :db [:fields :target] :field_values :segments :metrics)
-         (update-in [:fields] (if include_sensitive_fields
-                                ;; If someone passes include_sensitive_fields return hydrated :fields as-is
-                                identity
-                                ;; Otherwise filter out all :sensitive fields
-                                (partial filter (fn [{:keys [visibility_type]}]
-                                                  (not= (keyword visibility_type) :sensitive)))))))
+  (-> (read-check Table id)
+      (hydrate :db [:fields :target] :field_values :segments :metrics)
+      (update-in [:fields] (if include_sensitive_fields
+                             ;; If someone passes include_sensitive_fields return hydrated :fields as-is
+                             identity
+                             ;; Otherwise filter out all :sensitive fields
+                             (partial filter (fn [{:keys [visibility_type]}]
+                                               (not= (keyword visibility_type) :sensitive)))))))
 
 (defendpoint GET "/:id/fks"
   "Get all foreign keys whose destination is a `Field` that belongs to this `Table`."
   [id]
-  (let-404 [table (Table id)]
-    (read-check table)
-    (let [field-ids (db/select-ids Field, :table_id id, :visibility_type [:not= "retired"])]
-      (when (seq field-ids)
-        (for [origin-field (db/select Field, :fk_target_field_id [:in field-ids])]
-          ;; it's silly to be hydrating some of these tables/dbs
-          {:relationship   :Mt1
-           :origin_id      (:id origin-field)
-           :origin         (hydrate origin-field [:table :db])
-           :destination_id (:fk_target_field_id origin-field)
-           :destination    (hydrate (Field (:fk_target_field_id origin-field)) :table)})))))
+  (read-check Table id)
+  (let [field-ids (db/select-ids Field, :table_id id, :visibility_type [:not= "retired"])]
+    (when (seq field-ids)
+      (for [origin-field (db/select Field, :fk_target_field_id [:in field-ids])]
+        ;; it's silly to be hydrating some of these tables/dbs
+        {:relationship   :Mt1
+         :origin_id      (:id origin-field)
+         :origin         (hydrate origin-field [:table :db])
+         :destination_id (:fk_target_field_id origin-field)
+         :destination    (hydrate (Field (:fk_target_field_id origin-field)) :table)}))))
 
-;; TODO - Should this require superuser status instead of table write status?
 (defendpoint POST "/:id/sync"
-  "Re-sync the metadata for this `Table`."
+  "Re-sync the metadata for this `Table`. This is ran asynchronously; the endpoint returns right away."
   [id]
-  (let-404 [table (Table id)]
-    (write-check table)
-    ;; run the task asynchronously
-    (future (sync-database/sync-table! table)))
+  (future (sync-database/sync-table! (write-check Table id)))
   {:status :ok})
 
 (defendpoint POST "/:id/reorder"
@@ -113,14 +105,14 @@
     ;; run a function over the `new_order` list which simply updates `Field` :position to the index in the vector
     ;; NOTE: we assume that all `Fields` in the table are represented in the array
     (dorun
-      (map-indexed
-        (fn [index field-id]
-          ;; this is a bit superfluous, but we force ourselves to match the supplied `new_order` field-id with an
-          ;; actual `Field` value selected above in order to ensure people don't accidentally update fields they
-          ;; aren't supposed to or aren't allowed to.  e.g. without this the caller could update any field-id they want
-          (when-let [{:keys [id]} (first (filter #(= field-id (:id %)) table-fields))]
-            (db/update! Field id, :position index)))
-        new_order))
+     (map-indexed
+      (fn [index field-id]
+        ;; this is a bit superfluous, but we force ourselves to match the supplied `new_order` field-id with an
+        ;; actual `Field` value selected above in order to ensure people don't accidentally update fields they
+        ;; aren't supposed to or aren't allowed to.  e.g. without this the caller could update any field-id they want
+        (when-let [{:keys [id]} (first (filter #(= field-id (:id %)) table-fields))]
+          (db/update! Field id, :position index)))
+      new_order))
     {:result "success"}))
 
 (define-routes)
