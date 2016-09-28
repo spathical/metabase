@@ -1,5 +1,6 @@
 (ns metabase.models.card
-  (:require [medley.core :as m]
+  (:require [clojure.tools.logging :as log]
+            [medley.core :as m]
             [metabase.api.common :refer [*current-user-id* *current-user-permissions-set*]]
             [metabase.db :as db]
             (metabase.models [card-label :refer [CardLabel]]
@@ -38,9 +39,12 @@
 ;;; ------------------------------------------------------------ Permissions Checking ------------------------------------------------------------
 
 (defn- permissions-path-set:mbql [{database-id :database, :as query}]
+  {:pre [(integer? database-id) (map? (:query query))]}
   (let [{{:keys [source-table join-tables]} :query} (resolve/resolve (expand/expand query))]
     (set (for [table (cons source-table join-tables)]
-           (perms/object-path database-id (:schema table) (:id table))))))
+           (perms/object-path database-id
+                              (:schema table)
+                              (or (:id table) (:table-id table)))))))
 
 (defn- permissions-path-set:native [read-or-write {database-id :database}]
   #{((case read-or-write
