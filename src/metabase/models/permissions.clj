@@ -126,7 +126,7 @@
   ^Boolean [permissions-set path]
   (boolean (some (partial is-permissions-for-object? path) permissions-set)))
 
-(defn- set-has-partial-permissions?
+(defn set-has-partial-permissions?
   "Does PERMISSIONS-SET grant access to *some* descendants of object with PATH?"
   ^Boolean [permissions-set path]
   (boolean (some (partial is-partial-permissions-for-object? path) permissions-set)))
