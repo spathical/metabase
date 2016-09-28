@@ -9,11 +9,7 @@
             [metabase.util :as u]))
 
 
-(defn ordered-cards
-  "Return the `DashboardCards` associated with DASHBOARD, in the order they were created."
-  {:hydrate :ordered_cards, :arglists '([dashboard])}
-  [{:keys [id]}]
-  (db/select DashboardCard, :dashboard_id id, {:order-by [[:created_at :asc]]}))
+;;; ---------------------------------------- Entity & Lifecycle ----------------------------------------
 
 (defn- pre-cascade-delete [{:keys [id]}]
   (db/cascade-delete! 'Revision :model "Dashboard" :model_id id)
@@ -36,8 +32,16 @@
           :pre-insert         pre-insert}))
 
 
-;;; ## ---------------------------------------- PERSISTENCE FUNCTIONS ----------------------------------------
+;;; ---------------------------------------- Hydration ----------------------------------------
 
+(defn ordered-cards
+  "Return the `DashboardCards` associated with DASHBOARD, in the order they were created."
+  {:hydrate :ordered_cards}
+  [dashboard]
+  (db/select DashboardCard, :dashboard_id (u/get-id dashboard), {:order-by [[:created_at :asc]]}))
+
+
+;;; ## ---------------------------------------- PERSISTENCE FUNCTIONS ----------------------------------------
 
 (defn create-dashboard!
   "Create a `Dashboard`"
@@ -72,7 +76,6 @@
 
 
 ;;; ## ---------------------------------------- REVISIONS ----------------------------------------
-
 
 (defn serialize-dashboard
   "Serialize a `Dashboard` for use in a `Revision`."
@@ -147,7 +150,6 @@
           (concat (map-indexed check-series-change (:cards changes)))
           (->> (filter identity)
                build-sentence)))))
-
 
 (u/strict-extend (class Dashboard)
   revision/IRevisioned
