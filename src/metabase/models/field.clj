@@ -50,7 +50,9 @@
   (db/cascade-delete! 'MetricImportantField :field_id id))
 
 ;; For the time being permissions to access a field are the same as permissions to access its parent table
+;; TODO - this can be memoized because a Table's `:db_id` and `:schema` are guaranteed to never change, as is a Field's `:table_id`
 (defn- perms-objects-set [{table-id :table_id} _]
+  (println "Field.perms-objects-set!") ; NOCOMMIT
   (let [{schema :schema, database-id :db_id} (db/select-one ['Table :schema :db_id] :id table-id)]
     #{(perms/object-path database-id schema table-id)}))
 

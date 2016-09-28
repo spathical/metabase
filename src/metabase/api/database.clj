@@ -153,31 +153,51 @@
          read-check
          (hydrate [:tables [:fields :target :values] :segments :metrics])))
 
+
+(defn- autocomplete-tables [db-id prefix]
+  (db/select [Table :id :db_id :schema :name]
+    :db_id       db-id
+    :active      true
+    :%lower.name [:like (str (s/lower-case prefix) "%")]))
+
+(defn- autocomplete-fields [db-id prefix]
+  (db/select [Field :name :base_type :special_type :id [:table.name :table_name]]
+    :metabase_field.active          true
+    :%lower.metabase_field.name     [:like (str (s/lower-case prefix) "%")]
+    :metabase_field.visibility_type [:not-in ["sensitive" "retired"]]
+    :table.db_id                    db-id
+    {:left-join [[:metabase_table :table] [:= :table.id :metabase_field.table_id]]}))
+
+(defn- autocomplete-results [tables fields]
+  (concat (for [{table-name :name} tables]
+            [table-name "Table"])
+          (for [{:keys [table_name base_type special_type name]} fields]
+            [name (str table_name
+                       " "
+                       base_type
+                       (when special_type
+                         (str " " special_type)))])))
+
+(defn- autocomplete-suggestions [db-id prefix]
+  (let [tables (autocomplete-tables db-id prefix)
+        fields (autocomplete-fields db-id prefix)]
+    (autocomplete-results tables fields)))
+
 (defendpoint GET "/:id/autocomplete_suggestions"
   "Return a list of autocomplete suggestions for a given PREFIX.
    This is intened for use with the ACE Editor when the User is typing raw SQL.
-   Suggestions include matching `Tables` and `Fields` in this `Database`."
-  [id prefix] ; TODO - should prefix be Required/NonEmptyString ?
+   Suggestions include matching `Tables` and `Fields` in this `Database`.
+
+   Tables are returned in the format `[table_name \"Table\"]`;
+   Fields are returned in the format `[field_name \"table_name base_type special_type\"]`"
+  [id prefix]
+  {prefix [Required NonEmptyString]}
   (read-check Database id)
   (try
-    (let [prefix-len      (count prefix)
-          table-id->name  (db/select-id->field :name Table, :db_id id, :active true)
-          matching-tables (->> (vals table-id->name)                                                              ; get all Table names that start with PREFIX
-                               (filter (fn [^String table-name]
-                                         (and (>= (count table-name) prefix-len)
-                                              (= prefix (.substring table-name 0 prefix-len)))))
-                               (map (fn [table-name]                                                              ; return them in the format [table_name "Table"]
-                                      [table-name "Table"])))
-          fields (->> (db/select [Field :name :base_type :special_type :table_id]                                 ; get all Fields with names that start with PREFIX
-                                 :table_id        [:in (keys table-id->name)]                                              ; whose Table is in this DB
-                                 :name            [:like (str prefix "%")]
-                                 :visibility_type [:not-in ["sensitive" "retired"]])
-                      (map (fn [{:keys [name base_type special_type table_id]}]                                   ; return them in the format
-                             [name (str (table-id->name table_id) " " base_type (when special_type                ; [field_name "table_name base_type special_type"]
-                                                                                  (str " " special_type)))])))]
-      (concat matching-tables fields))                                                                           ; return combined seq of Fields + Tables
+    (autocomplete-suggestions id prefix)
     (catch Throwable t
       (log/warn "Error with autocomplete: " (.getMessage t)))))
+
 
 (defendpoint GET "/:id/tables"
   "Get a list of all `Tables` in `Database`."
