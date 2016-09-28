@@ -52,18 +52,23 @@
 (defendpoint GET "/:id"
   "Get `Database` with ID."
   [id]
-  (check-404 (Database id)))
+  (read-check Database id))
 
 
 ;;; ------------------------------------------------------------ GET /api/database/:id/metadata ------------------------------------------------------------
+
+(defn- db-metadata [id]
+  (-> (read-check Database id)
+      (hydrate [:tables [:fields :target :values] :segments :metrics])
+      (update :tables   (partial filter models/can-read?))
+      (update :segments (partial filter models/can-read?))
+      (update :metrics  (partial filter models/can-read?))))
 
 (defendpoint GET "/:id/metadata"
   "Get metadata about a `Database`, including all of its `Tables` and `Fields`.
    Returns DB, fields, and field values."
   [id]
-  (->404 (Database id)
-         read-check
-         (hydrate [:tables [:fields :target :values] :segments :metrics])))
+  (db-metadata id))
 
 
 ;;; ------------------------------------------------------------ GET /api/database/:id/autocomplete_suggestions ------------------------------------------------------------
@@ -136,6 +141,7 @@
      :name       display_name
      :table_name (:display_name table)
      :schema     (:schema table)}))
+
 
 ;;; ------------------------------------------------------------ GET /api/database/:id/idfields ------------------------------------------------------------
 
