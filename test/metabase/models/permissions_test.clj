@@ -379,6 +379,132 @@
                                                                 #{"/db/1/schema/public/table/1/" "/ocean/"}))
 
 
+;;; ------------------------------------------------------------ TODO - set-has-partial-permissions-for-set? ------------------------------------------------------------
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/"}
+                                                    #{"/db/1/schema/public/table/2/" "/db/2/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/table/2/" "/db/3/schema/public/"}
+                                                    #{"/db/1/" "/db/3/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/table/2/" "/db/3/"}
+                                                    #{"/db/1/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/" "/db/3/schema//"}
+                                                    #{"/db/1/" "/db/3/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}
+                                                    #{"/db/1/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/"}
+                                                    #{"/db/1/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/native/read/"}
+                                                    #{"/db/1/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/"}
+                                                    #{"/db/1/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/"}
+                                                    #{"/db/1/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/"}
+                                                    #{"/db/1/" "/db/1/schema/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/"}
+                                                    #{"/db/1/" "/db/1/schema/public/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/table/1/"}
+                                                    #{"/db/1/" "/db/1/schema/public/table/1/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/native/"}
+                                                    #{"/db/1/native/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/native/read/"}
+                                                    #{"/db/1/native/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/"}
+                                                    #{"/db/1/schema/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/table/1/"}
+                                                    #{"/db/1/schema/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/table/1/"}
+                                                    #{"/db/1/schema/public/"}))
+
+(expect (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}
+                                                    #{"/db/1/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{}
+                                                          #{"/db/1/schema/public/table/2/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/"}
+                                                          #{"/db/1/native/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/native/"}
+                                                          #{"/db/1/schema/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/2/"}
+                                                          #{"/db/1/schema/public/table/2/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/2/" "/db/3/"}
+                                                          #{"/db/1/schema/public/table/2/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/2/schema/public/" "/db/3/schema/public/"}
+                                                          #{"/db/1/schema/public/table/2/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/table/2/" "/db/3/schema/public/"}
+                                                          #{"/db/1/" "/db/3/" "/db/9/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/table/2/" "/db/3/"}
+                                                          #{"/db/1/" "/db/9/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/" "/db/3/schema//"}
+                                                          #{"/db/1/" "/db/3/" "/db/9/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}
+                                                          #{"/db/1/" "/db/9/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/"}
+                                                          #{"/db/1/" "/db/9/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/native/read/"}
+                                                          #{"/db/1/" "/db/9/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/"}
+                                                          #{"/db/1/" "/db/9/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/"}
+                                                          #{"/db/1/" "/db/9/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/"}
+                                                          #{"/db/1/" "/db/1/schema/" "/db/9/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/"}
+                                                          #{"/db/1/" "/db/1/schema/public/" "/db/9/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/table/1/"}
+                                                          #{"/db/1/" "/db/1/schema/public/table/1/" "/db/9/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/native/"}
+                                                          #{"/db/1/native/" "/db/9/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/native/read/"}
+                                                          #{"/db/1/native/" "/db/9/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/"}
+                                                          #{"/db/1/schema/" "/db/9/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/table/1/"}
+                                                          #{"/db/1/schema/" "/db/9/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/table/1/"}
+                                                          #{"/db/1/schema/public/" "/db/9/"}))
+
+(expect false (perms/set-has-partial-permissions-for-set? #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}
+                                                          #{"/db/1/" "/db/9/"}))
+
+
 ;;; +----------------------------------------------------------------------------------------------------------------------------------------------------------------+
 ;;; |                                                                 TODO - Permissions Graph Tests                                                                 |
 ;;; +----------------------------------------------------------------------------------------------------------------------------------------------------------------+

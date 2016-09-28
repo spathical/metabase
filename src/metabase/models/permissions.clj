@@ -136,14 +136,21 @@
 
 
 (defn ^Boolean set-has-full-permissions-for-set?
-  "Do the permissions paths in PERMISSIONS-SET grant access to all the object paths in OBJECT-PATHS-SET?"
+  "Do the permissions paths in PERMISSIONS-SET grant *full* access to all the object paths in OBJECT-PATHS-SET?"
   [permissions-set object-paths-set]
-  {:pre [(or (is-permissions-set? permissions-set)  (println "Invalid permissions-set:" permissions-set))
-         (or (is-permissions-set? object-paths-set) (println "Invalid permissions-set:" object-paths-set))]}
+  {:pre [(is-permissions-set? permissions-set) (is-permissions-set? object-paths-set)]}
   (u/prog1 (every? (partial set-has-full-permissions? permissions-set)
                    object-paths-set)
     ;; NOCOMMIT
     #_(println (format "\nset-has-full-permissions-for-set?\n%s\nfor %s\n-> %s" (u/format-color 'green permissions-set) (u/format-color 'red object-paths-set) (u/format-color 'blue <>)))))
+
+(defn ^Boolean set-has-partial-permissions-for-set?
+  "Do the permissions paths in PERMISSIONS-SET grant *partial* access to all the object paths in OBJECT-PATHS-SET?
+   (PERMISSIONS-SET must grant partial access to *every* object in OBJECT-PATH-SETS set)."
+  [permissions-set object-paths-set]
+  {:pre [(is-permissions-set? permissions-set) (is-permissions-set? object-paths-set)]}
+  (every? (partial set-has-partial-permissions? permissions-set)
+          object-paths-set))
 
 
 ;;; +------------------------------------------------------------------------------------------------------------------------------------------------------+
