@@ -42,25 +42,35 @@
           (response-invalid :dbname (.getMessage e)))))))
 
 ;; TODO - Just make `:ssl` a `feature`
-(defn supports-ssl?
-  "Predicate function which determines if a given `engine` supports the `:ssl` setting."
+(defn- supports-ssl?
+  "Does the given `engine` have an `:ssl` setting?"
   [engine]
   {:pre [(driver/is-engine? engine)]}
-  (let [driver-props (->> (driver/engine->driver engine)
-                          driver/details-fields
-                          (map :name)
-                          set)]
+  (let [driver-props (set (for [field (driver/details-fields (driver/engine->driver engine))]
+                            (:name field)))]
     (contains? driver-props "ssl")))
+
+
+(defn- add-tables [dbs]
+  (let [db-id->tables (group-by :db_id (filter models/can-read? (db/select Table
+                                                                  :active true
+                                                                  :db_id  [:in (map :id dbs)]
+                                                                  {:order-by [[:%lower.display_name :asc]]})))]
+    (for [db dbs]
+      (assoc db :tables (get db-id->tables (:id db) [])))))
+
+(defn- dbs-list [include-tables?]
+  (when-let [dbs (seq (filter models/can-read? (db/select Database {:order-by [:%lower.name]})))]
+    (if-not include-tables?
+      dbs
+      (add-tables dbs))))
 
 (defendpoint GET "/"
   "Fetch all `Databases`."
   [include_tables]
-  (let [dbs (db/select Database {:order-by [:%lower.name]})]
-    (if-not include_tables
-      dbs
-      (let [db-id->tables (group-by :db_id (db/select Table, :active true))]
-        (for [db dbs]
-          (assoc db :tables (sort-by :name (get db-id->tables (:id db) []))))))))
+  (or (dbs-list include_tables)
+      []))
+
 
 (defendpoint POST "/"
   "Add a new `Database`."
@@ -92,6 +102,7 @@
       ;; failed to connect, return error
       {:status 400
        :body   details-or-error})))
+
 
 (defendpoint POST "/sample_dataset"
   "Add the sample dataset as a new `Database`."

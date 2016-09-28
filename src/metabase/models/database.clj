@@ -55,7 +55,7 @@
 (defn ^:hydrate tables
   "Return the `Tables` associated with this `Database`."
   [{:keys [id]}]
-  (db/select 'Table, :db_id id, :active true, {:order-by [[:display_name :asc]]}))
+  (db/select 'Table, :db_id id, :active true, {:order-by [[:%lower.display_name :asc]]}))
 
 (defn schema-names
   "Return a *sorted set* of schema names (as strings) associated with this `Database`."
