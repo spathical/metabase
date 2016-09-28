@@ -176,12 +176,11 @@
 (defendpoint GET "/:id"
   "Get `Card` with ID."
   [id]
-  (->404 (Card id)
-         read-check
-         (hydrate :creator :can_read :can_write :dashboard_count :labels)
-         (assoc :actor_id *current-user-id*)
-         (->> (events/publish-event :card-read))
-         (dissoc :actor_id)))
+  (-> (read-check Card id)
+      (hydrate :creator :can_read :can_write :dashboard_count :labels)
+      (assoc :actor_id *current-user-id*)
+      (->> (events/publish-event :card-read))
+      (dissoc :actor_id)))
 
 
 (defendpoint PUT "/:id"
@@ -192,8 +191,7 @@
    display                NonEmptyString
    visualization_settings Dict
    archived               Boolean}
-  (let-404 [card (Card id)]
-    (write-check card)
+  (let [card (write-check Card id)]
     (db/update-non-nil-keys! Card id
       :dataset_query          dataset_query
       :description            description
@@ -267,10 +265,10 @@
 (defendpoint POST "/:card-id/query"
   "Run the query associated with a Card."
   [card-id :as {{:keys [parameters timeout]} :body}]
-  (let-404 [card  (Card card-id)
-            query (assoc (:dataset_query card)
-                    :parameters  parameters
-                    :constraints dataset-api/query-constraints)]
+  (let [card  (read-check Card card-id)
+        query (assoc (:dataset_query card)
+                :parameters  parameters
+                :constraints dataset-api/query-constraints)]
     ;; Now run the query!
     (let [options {:executed-by *current-user-id*
                    :card-id     card-id}]
