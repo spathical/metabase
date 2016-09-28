@@ -4,12 +4,22 @@
             [metabase.events :as events]
             [metabase.api.common :refer :all]
             [metabase.db :as db]
-            (metabase.models [hydrate :refer [hydrate]]
-                             [card :refer [Card]]
+            (metabase.models [card :refer [Card]]
                              [common :as common]
                              [dashboard :refer [Dashboard], :as dashboard]
-                             [dashboard-card :refer [DashboardCard create-dashboard-card! update-dashboard-card! delete-dashboard-card!]])
-            [metabase.models.revision :as revision]))
+                             [dashboard-card :refer [DashboardCard create-dashboard-card! update-dashboard-card! delete-dashboard-card!]]
+                             [interface :as models]
+                             [hydrate :refer [hydrate]])
+            [metabase.models.revision :as revision]
+            [metabase.util :as u]))
+
+
+(defn- dashboards-list [filter-option]
+  (filter models/can-read? (-> (db/select Dashboard {:where (case (or filter-option :all)
+                                                              :all  [:or [:= :creator_id *current-user-id*]
+                                                                     [:> :public_perms common/perms-none]]
+                                                              :mine [:= :creator_id *current-user-id*])})
+                               (hydrate :creator :can_read :can_write))))
 
 (defendpoint GET "/"
   "Get `Dashboards`. With filter option `f` (default `all`), restrict results as follows:
@@ -18,11 +28,8 @@
   *  `mine` - Return `Dashboards` created by the current user."
   [f]
   {f FilterOptionAllOrMine}
-  (-> (db/select Dashboard {:where (case (or f :all)
-                                     :all  [:or [:= :creator_id *current-user-id*]
-                                                [:> :public_perms common/perms-none]]
-                                     :mine [:= :creator_id *current-user-id*])})
-      (hydrate :creator :can_read :can_write)))
+  (dashboards-list f))
+
 
 (defendpoint POST "/"
   "Create a new `Dashboard`."
@@ -31,6 +38,7 @@
    public_perms [Required PublicPerms]
    parameters   [ArrayOfMaps]}
   (dashboard/create-dashboard! dashboard *current-user-id*))
+
 
 (defendpoint GET "/:id"
   "Get `Dashboard` with ID."
@@ -43,6 +51,7 @@
            (->> (events/publish-event :dashboard-read))
            (dissoc :actor_id))))
 
+
 (defendpoint PUT "/:id"
   "Update a `Dashboard`."
   [id :as {{:keys [description name parameters caveats points_of_interest show_in_getting_started], :as dashboard} :body}]
@@ -52,15 +61,14 @@
   (check-500 (-> (assoc dashboard :id id)
                  (dashboard/update-dashboard! *current-user-id*))))
 
+
 (defendpoint DELETE "/:id"
   "Delete a `Dashboard`."
   [id]
-  (write-check Dashboard id)
-  ;; TODO - it would be much more natural if `cascade-delete` returned the deleted entity instead of an api response
-  (let [dashboard (Dashboard id)
-        result    (db/cascade-delete! Dashboard :id id)]
-    (events/publish-event :dashboard-delete (assoc dashboard :actor_id *current-user-id*))
-    result))
+  (let [dashboard (write-check Dashboard id)]
+    (u/prog1 (db/cascade-delete! Dashboard :id id)
+      (events/publish-event :dashboard-delete (assoc dashboard :actor_id *current-user-id*)))))
+
 
 (defendpoint POST "/:id/cards"
   "Add a `Card` to a `Dashboard`."
@@ -78,6 +86,7 @@
     (let-500 [result (create-dashboard-card! dashboard-card)]
       (events/publish-event :dashboard-add-cards {:id id :actor_id *current-user-id* :dashcards [result]})
       result)))
+
 
 (defendpoint PUT "/:id/cards"
   "Update `Cards` on a `Dashboard`. Request body should have the form:
@@ -99,6 +108,7 @@
   (events/publish-event :dashboard-reposition-cards {:id id :actor_id *current-user-id* :dashcards cards})
   {:status :ok})
 
+
 (defendpoint DELETE "/:id/cards"
   "Remove a `DashboardCard` from a `Dashboard`."
   [id dashcardId]
@@ -108,6 +118,7 @@
   (when-let [dashboard-card (DashboardCard dashcardId)]
     (check-500 (delete-dashboard-card! dashboard-card *current-user-id*))
     {:success true}))
+
 
 (defendpoint GET "/:id/revisions"
   "Fetch `Revisions` for `Dashboard` with ID."
@@ -127,5 +138,6 @@
     :id          id
     :user-id     *current-user-id*
     :revision-id revision_id))
+
 
 (define-routes)

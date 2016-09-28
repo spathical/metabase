@@ -1,19 +1,31 @@
 (ns metabase.models.dashboard
   (:require [clojure.data :refer [diff]]
+            [metabase.api.common :refer [*current-user-permissions-set*]]
             (metabase [db :as db]
                       [events :as events])
-            (metabase.models [dashboard-card :refer [DashboardCard], :as dashboard-card]
+            (metabase.models [card :as card]
+                             [dashboard-card :refer [DashboardCard], :as dashboard-card]
                              [interface :as i]
+                             [permissions :as perms]
                              [revision :as revision])
             [metabase.models.revision.diff :refer [build-sentence]]
             [metabase.util :as u]))
 
 
+;;; ---------------------------------------- Perms Checking ----------------------------------------
+
+(defn- can-read? [dashboard]
+  (let [cards (when-let [card-ids (db/select-field :card_id 'DashboardCard :dashboard_id (u/get-id dashboard))]
+                (db/select ['Card :dataset_query] :id [:in card-ids]))]
+    (or (empty? cards)
+        (some i/can-read? cards))))
+
+
 ;;; ---------------------------------------- Entity & Lifecycle ----------------------------------------
 
-(defn- pre-cascade-delete [{:keys [id]}]
-  (db/cascade-delete! 'Revision :model "Dashboard" :model_id id)
-  (db/cascade-delete! DashboardCard :dashboard_id id))
+(defn- pre-cascade-delete [dashboard]
+  (db/cascade-delete! 'Revision :model "Dashboard" :model_id (u/get-id dashboard))
+  (db/cascade-delete! DashboardCard :dashboard_id (u/get-id dashboard)))
 
 (defn- pre-insert [dashboard]
   (let [defaults {:parameters []}]
@@ -26,8 +38,8 @@
   (merge i/IEntityDefaults
          {:timestamped?       (constantly true)
           :types              (constantly {:description :clob, :parameters :json})
-          :can-read?          (constantly true)
-          :can-write?         (constantly true)
+          :can-read?          can-read?
+          :can-write?         can-read?
           :pre-cascade-delete pre-cascade-delete
           :pre-insert         pre-insert}))
 
