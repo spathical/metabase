@@ -60,9 +60,12 @@
 (defn- db-metadata [id]
   (-> (read-check Database id)
       (hydrate [:tables [:fields :target :values] :segments :metrics])
-      (update :tables   (partial filter models/can-read?))
-      (update :segments (partial filter models/can-read?))
-      (update :metrics  (partial filter models/can-read?))))
+      (update :tables   (fn [tables]
+                          (for [table tables
+                                :when (models/can-read? table)]
+                            (-> table
+                                (update :segments (partial filter models/can-read?))
+                                (update :metrics  (partial filter models/can-read?))))))))
 
 (defendpoint GET "/:id/metadata"
   "Get metadata about a `Database`, including all of its `Tables` and `Fields`.
