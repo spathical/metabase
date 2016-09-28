@@ -149,36 +149,36 @@
 
 ;;; ------------------------------------------------------------ is-permissions-for-object? ------------------------------------------------------------
 
-(expect (perms/is-permissions-for-object? "/db/1/schema/PUBLIC/table/1/" "/"))
-(expect (perms/is-permissions-for-object? "/db/1/schema/PUBLIC/table/1/" "/db/"))
-(expect (perms/is-permissions-for-object? "/db/1/schema/PUBLIC/table/1/" "/db/1/"))
-(expect (perms/is-permissions-for-object? "/db/1/schema/PUBLIC/table/1/" "/db/1/schema/"))
-(expect (perms/is-permissions-for-object? "/db/1/schema/PUBLIC/table/1/" "/db/1/schema/PUBLIC/"))
+(expect (perms/is-permissions-for-object? "/"                            "/db/1/schema/PUBLIC/table/1/"))
+(expect (perms/is-permissions-for-object? "/db/"                         "/db/1/schema/PUBLIC/table/1/"))
+(expect (perms/is-permissions-for-object? "/db/1/"                       "/db/1/schema/PUBLIC/table/1/"))
+(expect (perms/is-permissions-for-object? "/db/1/schema/"                "/db/1/schema/PUBLIC/table/1/"))
+(expect (perms/is-permissions-for-object? "/db/1/schema/PUBLIC/"         "/db/1/schema/PUBLIC/table/1/"))
 (expect (perms/is-permissions-for-object? "/db/1/schema/PUBLIC/table/1/" "/db/1/schema/PUBLIC/table/1/"))
 
-(expect false (perms/is-permissions-for-object? "/db/1/schema/PUBLIC/table/1/" "/db/2/"))
-(expect false (perms/is-permissions-for-object? "/db/1/schema/PUBLIC/table/1/" "/db/2/native/"))
-(expect false (perms/is-permissions-for-object? "/db/1/schema/PUBLIC/table/1/" "/db/2/native/read/"))
-(expect false (perms/is-permissions-for-object? "/db/1/schema/PUBLIC/table/1/" "/db/1/schema/public/")) ; different case
-(expect false (perms/is-permissions-for-object? "/db/1/schema/PUBLIC/table/1/" "/db/1/schema/private/"))
-(expect false (perms/is-permissions-for-object? "/db/1/schema/PUBLIC/table/1/" "/db/1/schema/PUBLIC/table/2/"))
+(expect false (perms/is-permissions-for-object? "/db/2/"                       "/db/1/schema/PUBLIC/table/1/"))
+(expect false (perms/is-permissions-for-object? "/db/2/native/"                "/db/1/schema/PUBLIC/table/1/"))
+(expect false (perms/is-permissions-for-object? "/db/2/native/read/"           "/db/1/schema/PUBLIC/table/1/"))
+(expect false (perms/is-permissions-for-object? "/db/1/schema/public/"         "/db/1/schema/PUBLIC/table/1/")) ; different case
+(expect false (perms/is-permissions-for-object? "/db/1/schema/private/"        "/db/1/schema/PUBLIC/table/1/"))
+(expect false (perms/is-permissions-for-object? "/db/1/schema/PUBLIC/table/2/" "/db/1/schema/PUBLIC/table/1/"))
 
 
 ;;; ------------------------------------------------------------ is-partial-permissions-for-object? ------------------------------------------------------------
 
-(expect (perms/is-partial-permissions-for-object? "/db/1/" "/db/1/schema/"))
-(expect (perms/is-partial-permissions-for-object? "/db/1/" "/db/1/schema/PUBLIC/"))
-(expect (perms/is-partial-permissions-for-object? "/db/1/" "/db/1/schema/PUBLIC/table/"))
-(expect (perms/is-partial-permissions-for-object? "/db/1/" "/db/1/schema/PUBLIC/table/1/"))
-(expect (perms/is-partial-permissions-for-object? "/db/1/" "/db/1/schema/PUBLIC/table/1/field/"))
-(expect (perms/is-partial-permissions-for-object? "/db/1/" "/db/1/schema/PUBLIC/table/1/field/2/"))
+(expect (perms/is-partial-permissions-for-object? "/"                                    "/db/1/"))
+(expect (perms/is-partial-permissions-for-object? "/db/"                                 "/db/1/"))
+(expect (perms/is-partial-permissions-for-object? "/db/1/"                               "/db/1/"))
+(expect (perms/is-partial-permissions-for-object? "/db/1/schema/"                        "/db/1/"))
+(expect (perms/is-partial-permissions-for-object? "/db/1/schema/PUBLIC/"                 "/db/1/"))
+(expect (perms/is-partial-permissions-for-object? "/db/1/schema/PUBLIC/table/"           "/db/1/"))
+(expect (perms/is-partial-permissions-for-object? "/db/1/schema/PUBLIC/table/1/"         "/db/1/"))
+(expect (perms/is-partial-permissions-for-object? "/db/1/schema/PUBLIC/table/1/field/"   "/db/1/"))
+(expect (perms/is-partial-permissions-for-object? "/db/1/schema/PUBLIC/table/1/field/2/" "/db/1/"))
 
-(expect false (perms/is-partial-permissions-for-object? "/db/1/" "/"))
-(expect false (perms/is-partial-permissions-for-object? "/db/1/" "/db/"))
-(expect false (perms/is-partial-permissions-for-object? "/db/1/" "/db/1/"))
-(expect false (perms/is-partial-permissions-for-object? "/db/1/" "/db/2/"))
-(expect false (perms/is-partial-permissions-for-object? "/db/1/" "/db/2/native/"))
-(expect false (perms/is-partial-permissions-for-object? "/db/1/" "/db/2/native/read/"))
+(expect false (perms/is-partial-permissions-for-object? "/db/2/"             "/db/1/"))
+(expect false (perms/is-partial-permissions-for-object? "/db/2/native/"      "/db/1/"))
+(expect false (perms/is-partial-permissions-for-object? "/db/2/native/read/" "/db/1/"))
 
 
 ;;; ------------------------------------------------------------ is-permissions-set? ------------------------------------------------------------
@@ -215,9 +215,116 @@
 (expect false (perms/is-permissions-set? #{"/db/1/schema/public/table/1/" "/ocean/"}))
 
 
-;;; ------------------------------------------------------------ TODO - set-has-full-permissions? ------------------------------------------------------------
+;;; ------------------------------------------------------------ set-has-full-permissions? ------------------------------------------------------------
 
-;;; ------------------------------------------------------------ TODO - set-has-partial-permissions? ------------------------------------------------------------
+(expect (perms/set-has-full-permissions? #{"/"}
+                                         "/db/1/schema/public/table/2/"))
+
+(expect (perms/set-has-full-permissions? #{"/db/1/" "/db/3/"}
+                                         "/db/1/schema/public/table/2/"))
+
+(expect (perms/set-has-full-permissions? #{"/db/1/" "/db/3/"}
+                                         "/db/1/schema/public/table/2/"))
+
+(expect (perms/set-has-full-permissions? #{"/db/1/schema/public/" "/db/3/schema//"}
+                                         "/db/1/schema/public/table/2/"))
+
+(expect (perms/set-has-full-permissions? #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}
+                                         "/db/1/schema/public/table/2/"))
+
+(expect (perms/set-has-full-permissions? #{"/db/1/native/"}
+                                         "/db/1/native/"))
+
+(expect (perms/set-has-full-permissions? #{"/db/1/native/"}
+                                         "/db/1/native/read/"))
+
+(expect false (perms/set-has-full-permissions? #{}
+                                               "/db/1/schema/public/table/2/"))
+
+(expect false (perms/set-has-full-permissions? #{"/db/1/native/"}
+                                               "/db/1/"))
+
+(expect false (perms/set-has-full-permissions? #{"/db/1/schema/public/"}
+                                               "/db/1/schema/"))
+
+(expect false (perms/set-has-full-permissions? #{"/db/1/schema/public/table/1/"}
+                                               "/db/1/schema/public/"))
+
+(expect false (perms/set-has-full-permissions? #{"/db/2/"}
+                                               "/db/1/schema/public/table/2/"))
+
+(expect false (perms/set-has-full-permissions? #{"/db/2/" "/db/3/"}
+                                               "/db/1/schema/public/table/2/"))
+
+(expect false (perms/set-has-full-permissions? #{"/db/2/schema/public/" "/db/3/schema/public/"}
+                                               "/db/1/schema/public/table/2/"))
+
+
+;;; ------------------------------------------------------------ set-has-partial-permissions? ------------------------------------------------------------
+
+(expect (perms/set-has-partial-permissions? #{"/"}
+                                            "/db/1/schema/public/table/2/"))
+
+(expect (perms/set-has-partial-permissions? #{"/db/1/" "/db/3/"}
+                                            "/db/1/schema/public/table/2/"))
+
+(expect (perms/set-has-partial-permissions? #{"/db/1/" "/db/3/"}
+                                            "/db/1/schema/public/table/2/"))
+
+(expect (perms/set-has-partial-permissions? #{"/db/1/schema/public/" "/db/3/schema//"}
+                                            "/db/1/schema/public/table/2/"))
+
+(expect (perms/set-has-partial-permissions? #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}
+                                            "/db/1/schema/public/table/2/"))
+
+(expect (perms/set-has-partial-permissions? #{"/db/1/schema/public/"}
+                                            "/db/1/"))
+
+(expect (perms/set-has-partial-permissions? #{"/db/1/native/read/"}
+                                            "/db/1/"))
+
+(expect (perms/set-has-partial-permissions? #{"/db/1/schema/"}
+                                            "/db/1/"))
+
+(expect (perms/set-has-partial-permissions? #{"/db/1/schema/public/"}
+                                            "/db/1/"))
+
+(expect (perms/set-has-partial-permissions? #{"/db/1/schema/public/table/1/"}
+                                            "/db/1/"))
+
+(expect (perms/set-has-partial-permissions? #{"/db/1/native/read/"}
+                                            "/db/1/native/"))
+
+(expect (perms/set-has-partial-permissions? #{"/db/1/schema/public/"}
+                                            "/db/1/schema/"))
+
+(expect (perms/set-has-partial-permissions? #{"/db/1/schema/public/table/1/"}
+                                            "/db/1/schema/"))
+
+(expect (perms/set-has-partial-permissions? #{"/db/1/schema/public/table/1/"}
+                                            "/db/1/schema/public/"))
+
+(expect (perms/set-has-partial-permissions? #{"/db/1/schema/public/table/2/" "/db/3/schema//table/4/"}
+                                            "/db/1/"))
+
+(expect false (perms/set-has-partial-permissions? #{}
+                                                  "/db/1/schema/public/table/2/"))
+
+(expect false (perms/set-has-partial-permissions? #{"/db/1/schema/"}
+                                                  "/db/1/native/"))
+
+(expect false (perms/set-has-partial-permissions? #{"/db/1/native/"}
+                                                  "/db/1/schema/"))
+
+(expect false (perms/set-has-partial-permissions? #{"/db/2/"}
+                                                  "/db/1/schema/public/table/2/"))
+
+(expect false (perms/set-has-partial-permissions? #{"/db/2/" "/db/3/"}
+                                                  "/db/1/schema/public/table/2/"))
+
+(expect false (perms/set-has-partial-permissions? #{"/db/2/schema/public/" "/db/3/schema/public/"}
+                                                  "/db/1/schema/public/table/2/"))
+
 
 ;;; ------------------------------------------------------------ set-has-full-permissions-for-set? ------------------------------------------------------------
 

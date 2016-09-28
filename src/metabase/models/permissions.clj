@@ -104,15 +104,14 @@
 
 (defn is-permissions-for-object?
   "Does PERMISSIONS-PATH grant *full* access for object PATH?"
-  [path permissions-path]
+  [permissions-path path]
   (str/starts-with? path permissions-path))
 
 (defn is-partial-permissions-for-object?
-  "Does PERMISSIONS-PATH grant access for a descendant of object PATH?
-   (This will *not* return true for permissinos that grant full access)."
-  [path permissions-path]
-  (and (not= path permissions-path)
-       (str/starts-with? permissions-path path)))
+  "Does PERMISSIONS-PATH grant access full access for OBJECT path *or* for a descendant of object PATH?"
+  [permissions-path path]
+  (or (is-permissions-for-object? permissions-path path)
+      (str/starts-with? permissions-path path)))
 
 
 (defn is-permissions-set?
@@ -128,12 +127,12 @@
 (defn set-has-full-permissions?
   "Does PERMISSIONS-SET grant *full* access to object with PATH?"
   ^Boolean [permissions-set path]
-  (boolean (some (partial is-permissions-for-object? path) permissions-set)))
+  (boolean (some (u/rpartial is-permissions-for-object? path) permissions-set)))
 
 (defn set-has-partial-permissions?
-  "Does PERMISSIONS-SET grant access to *some* descendants of object with PATH?"
+  "Does PERMISSIONS-SET grant access full access to object with PATH *or* to a descendant of it?"
   ^Boolean [permissions-set path]
-  (boolean (some (partial is-partial-permissions-for-object? path) permissions-set)))
+  (boolean (some (u/rpartial is-partial-permissions-for-object? path) permissions-set)))
 
 
 (defn ^Boolean set-has-full-permissions-for-set?
@@ -279,7 +278,6 @@
                                                                  :when (= (:group_id perms) group-id)]
                                                              (:object perms)))]
                             {group-id (group-graph group-permissions-set tables)})))}))
-
 
 
 
