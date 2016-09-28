@@ -39,8 +39,7 @@
    special_type       FieldType
    visibility_type    FieldVisibilityType}
 
-  (let-404 [field (Field id)]
-    (write-check field)
+  (let [field (write-check Field id)]
     (let [special_type       (keyword (get body :special_type (:special_type field)))
           visibility_type    (or visibility_type (:visibility_type field))
           ;; only let target field be set for :type/FK type fields, and if it's not in the payload then leave the current value
@@ -65,8 +64,7 @@
 (defendpoint GET "/:id/summary"
   "Get the count and distinct count of `Field` with ID."
   [id]
-  (let-404 [field (Field id)]
-    (read-check field)
+  (let [field (read-check Field id)]
     [[:count     (metadata/field-count field)]
      [:distincts (metadata/field-distinct-count field)]]))
 
@@ -75,8 +73,7 @@
   "If `Field`'s special type derives from `type/Category`, or its base type is `type/Boolean`, return
    all distinct values of the field, and a map of human-readable values defined by the user."
   [id]
-  (let-404 [field (Field id)]
-    (read-check field)
+  (let [field (read-check Field id)]
     (if-not (field-should-have-field-values? field)
       {:values {} :human_readable_values {}}
       (create-field-values-if-needed! field))))
@@ -87,8 +84,7 @@
    or whose base type is `type/Boolean`."
   [id :as {{:keys [values_map]} :body}]
   {values_map [Required Dict]}
-  (let-404 [field (Field id)]
-    (write-check field)
+  (let [field (write-check Field id)]
     (check (field-should-have-field-values? field)
       [400 "You can only update the mapped values of a Field whose 'special_type' is 'category'/'city'/'state'/'country' or whose 'base_type' is 'type/Boolean'."])
     (if-let [field-values-id (db/select-one-id FieldValues, :field_id id)]

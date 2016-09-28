@@ -27,16 +27,14 @@
 
 (defentity ^:private DataMigrations :data_migrations)
 
-(defn- migration-ran? [migration-name]
-  (db/exists? DataMigrations :id (name migration-name)))
-
 (defn- run-migration-if-needed!
   "Run migration defined by MIGRATION-VAR if needed.
+   RAN-MIGRATIONS is a set of migrations names that have already been ran.
 
-     (run-migration-if-needed! #'set-card-database-and-table-ids)"
-  [migration-var]
+     (run-migration-if-needed! #{\"migrate-base-types\"} #'set-card-database-and-table-ids)"
+  [ran-migrations migration-var]
   (let [migration-name (name (:name (meta migration-var)))]
-    (when-not (migration-ran? migration-name)
+    (when-not (contains? ran-migrations migration-name)
       (log/info (format "Running data migration '%s'..." migration-name))
       (@migration-var)
       (db/insert! DataMigrations
@@ -56,8 +54,9 @@
   "Run all data migrations defined by `defmigration`."
   []
   (log/info "Running all necessary data migrations, this may take a minute.")
-  (doseq [migration @data-migrations]
-    (run-migration-if-needed! migration))
+  (let [ran-migrations (db/select-ids DataMigrations)]
+    (doseq [migration @data-migrations]
+      (run-migration-if-needed! ran-migrations migration)))
   (log/info "Finished running data migrations."))
 
 

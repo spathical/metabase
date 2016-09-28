@@ -6,7 +6,8 @@
             metabase.types
             (metabase.models [field-values :refer [FieldValues]]
                              [humanization :as humanization]
-                             [interface :as i])
+                             [interface :as i]
+                             [permissions :as perms])
             [metabase.util :as u]))
 
 
@@ -48,6 +49,11 @@
   (db/cascade-delete! 'FieldValues :field_id id)
   (db/cascade-delete! 'MetricImportantField :field_id id))
 
+;; For the time being permissions to access a field are the same as permissions to access its parent table
+(defn- perms-objects-set [{table-id :table_id} _]
+  (let [{schema :schema, database-id :db_id} (db/select-one ['Table :schema :db_id] :id table-id)]
+    #{(perms/object-path database-id schema table-id)}))
+
 (u/strict-extend (class Field)
   i/IEntity (merge i/IEntityDefaults
                    {:hydration-keys     (constantly [:destination :field :origin])
@@ -56,8 +62,9 @@
                                                      :visibility_type :keyword
                                                      :description     :clob})
                     :timestamped?       (constantly true)
-                    :can-read?          (constantly true)
-                    :can-write?         i/superuser?
+                    :perms-objects-set  perms-objects-set
+                    :can-read?          (partial i/current-user-has-full-permissions-for-set? :read)
+                    :can-write?         (partial i/current-user-has-full-permissions-for-set-and-is-superuser? :write)
                     :pre-insert         pre-insert
                     :pre-update         pre-update
                     :pre-cascade-delete pre-cascade-delete}))
@@ -197,6 +204,7 @@
 
 ;;; ------------------------------------------------------------ Sync Util CRUD Fns ------------------------------------------------------------
 
+;; TODO - rename to `update-field-from-field-def!`
 (defn update-field!
   "Update an existing `Field` from the given FIELD-DEF."
   [{:keys [id], :as existing-field} {field-name :name, :keys [base-type special-type pk? parent-id]}]
@@ -218,7 +226,7 @@
         :special_type (:special_type <>)
         :parent_id    parent-id))))
 
-
+;; TODO - rename to `create-field-from-field-def!`
 (defn create-field!
   "Create a new `Field` from the given FIELD-DEF."
   [table-id {field-name :name, :keys [base-type special-type pk? parent-id raw-column-id]}]
