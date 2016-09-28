@@ -224,7 +224,7 @@
 ;;; ------------------------------------------------------------ Favoriting ------------------------------------------------------------
 
 
-(defendpoint GET "/:id/favorite"
+(defendpoint GET "/:card-id/favorite"
   "Has current user favorited this `Card`?"
   [card-id]
   (read-check Card card-id)

@@ -54,10 +54,10 @@
    false
    true]
   (with-temp* [Database [{database-id :id}]
-               Table    [{table-1-id :id} {:db_id database-id}]
-               Table    [{table-2-id :id} {:db_id database-id}]
-               Card     [{card-1-id :id} {:table_id table-1-id}]
-               Card     [{card-2-id :id} {:table_id table-2-id}]]
+               Table    [{table-1-id :id}  {:db_id database-id}]
+               Table    [{table-2-id :id}  {:db_id database-id}]
+               Card     [{card-1-id :id}   {:table_id table-1-id}]
+               Card     [{card-2-id :id}   {:table_id table-2-id}]]
     (let [card-returned? (fn [table-id card-id]
                            (contains? (set (for [card ((user->client :rasta) :get 200 "card", :f :table, :model_id table-id)]
                                              (:id card)))
@@ -261,10 +261,10 @@
 (defn- fave? [card]
   ((user->client :rasta) :get 200 (format "card/%d/favorite" (:id card))))
 
-(defn- fave [card]
+(defn- fave! [card]
   ((user->client :rasta) :post 200 (format "card/%d/favorite" (:id card))))
 
-(defn- unfave [card]
+(defn- unfave! [card]
   ((user->client :rasta) :delete 204 (format "card/%d/favorite" (:id card))))
 
 ;; ## GET /api/card/:id/favorite
@@ -281,7 +281,7 @@
    {:favorite true}]
   (with-temp-card [card]
     [(fave? card)
-     (do (fave card)
+     (do (fave! card)
          (fave? card))]))
 
 ;; DELETE /api/card/:id/favorite
@@ -292,9 +292,9 @@
    {:favorite false}]
   (with-temp-card [card]
     [(fave? card)
-     (do (fave card)
+     (do (fave! card)
          (fave? card))
-     (do (unfave card)
+     (do (unfave! card)
          (fave? card))]))
 
 
