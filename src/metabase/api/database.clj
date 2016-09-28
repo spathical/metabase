@@ -12,6 +12,7 @@
                              [database :refer [Database protected-password], :as database]
                              [field :refer [Field]]
                              [hydrate :refer [hydrate]]
+                             [interface :as models]
                              [table :refer [Table]])
             (metabase [sample-data :as sample-data]
                       [util :as u])))
@@ -182,16 +183,16 @@
   "Get a list of all `Tables` in `Database`."
   [id]
   (read-check Database id)
-  (db/select Table, :db_id id, :active true, {:order-by [:name]})) ; TODO - should this be case-insensitive -- {:order-by [:%lower.name]} -- instead?
+  (filter models/can-read? (db/select Table, :db_id id, :active true, {:order-by [:%lower.name]})))
 
 (defendpoint GET "/:id/fields"
   "Get a list of all `Fields` in `Database`."
   [id]
   (read-check Database id)
-  (for [{:keys [id display_name table]} (-> (db/select [Field :id :display_name :table_id]
-                                              :table_id        [:in (db/select-field :id Table, :db_id id)]
-                                              :visibility_type [:not-in ["sensitive" "retired"]])
-                                            (hydrate :table))]
+  (for [{:keys [id display_name table]} (filter models/can-read? (-> (db/select [Field :id :display_name :table_id]
+                                                                       :table_id        [:in (db/select-field :id Table, :db_id id)]
+                                                                       :visibility_type [:not-in ["sensitive" "retired"]])
+                                                                     (hydrate :table)))]
     {:id         id
      :name       display_name
      :table_name (:display_name table)
@@ -201,16 +202,15 @@
   "Get a list of all primary key `Fields` for `Database`."
   [id]
   (read-check Database id)
-  (sort-by (comp s/lower-case :name :table) (hydrate (database/pk-fields {:id id}) :table)))
+  (sort-by (comp s/lower-case :name :table) (filter models/can-read? (-> (database/pk-fields {:id id})
+                                                                         (hydrate :table)))))
 
 ;; TODO - Shouldn't we just check for superuser status instead of write checking?
 (defendpoint POST "/:id/sync"
   "Update the metadata for this `Database`."
   [id]
-  (let-404 [db (Database id)]
-    (write-check db)
-    ;; just publish a message and let someone else deal with the logistics
-    (events/publish-event :database-trigger-sync db))
+  ;; just publish a message and let someone else deal with the logistics
+  (events/publish-event :database-trigger-sync (write-check Database id))
   {:status :ok})
 
 

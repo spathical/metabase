@@ -47,8 +47,8 @@
                    {:hydration-keys     (constantly [:table])
                     :types              (constantly {:entity_type :keyword, :visibility_type :keyword, :description :clob})
                     :timestamped?       (constantly true)
-                    :can-read?          (partial i/current-user-has-full-permissions-for-set? :read)
-                    :can-write?         (partial i/current-user-has-full-permissions-for-set-and-is-superuser? :write)
+                    :can-read?          (partial i/current-user-has-full-permissions? :read)
+                    :can-write?         i/superuser?
                     :pre-insert         pre-insert
                     :pre-cascade-delete pre-cascade-delete
                     :perms-objects-set  perms-objects-set}))

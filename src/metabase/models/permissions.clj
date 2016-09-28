@@ -78,9 +78,9 @@
 
 (defn object-path
   "Return the permissions path for a database, schema, or table."
-  (^String [database-id]                      {:pre [(integer? database-id)], :post (valid-object-path? %)} (str "/db/" database-id "/"))
-  (^String [database-id schema-name]          {:pre [(u/maybe? string? schema-name)]}                       (str (object-path database-id) "schema/" schema-name "/"))
-  (^String [database-id schema-name table-id] {:pre [(integer? table-id)]}                                  (str (object-path database-id schema-name) "table/" table-id "/" )))
+  (^String [database-id]                      {:pre [(integer? database-id)], :post (valid-object-path? %)}         (str "/db/" database-id "/"))
+  (^String [database-id schema-name]          {:pre [(u/maybe? string? schema-name)], :post (valid-object-path? %)} (str (object-path database-id) "schema/" schema-name "/"))
+  (^String [database-id schema-name table-id] {:pre [(integer? table-id)], :post (valid-object-path? %)}            (str (object-path database-id schema-name) "table/" table-id "/" )))
 
 (defn native-readwrite-path
   "Return the native query read/write permissions path for a database.

@@ -124,8 +124,8 @@
          {:hydration-keys     (constantly [:card])
           :types              (constantly {:display :keyword, :query_type :keyword, :dataset_query :json, :visualization_settings :json, :description :clob})
           :timestamped?       (constantly true)
-          :can-read?          (partial i/current-user-has-full-permissions-for-set? :read)
-          :can-write?         (partial i/current-user-has-full-permissions-for-set? :write)
+          :can-read?          (partial i/current-user-has-full-permissions? :read)
+          :can-write?         (partial i/current-user-has-full-permissions? :write)
           :pre-update         populate-query-fields
           :pre-insert         (comp populate-query-fields pre-insert)
           :pre-cascade-delete pre-cascade-delete

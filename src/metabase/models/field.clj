@@ -63,8 +63,8 @@
                                                      :description     :clob})
                     :timestamped?       (constantly true)
                     :perms-objects-set  perms-objects-set
-                    :can-read?          (partial i/current-user-has-full-permissions-for-set? :read)
-                    :can-write?         (partial i/current-user-has-full-permissions-for-set-and-is-superuser? :write)
+                    :can-read?          (partial i/current-user-has-full-permissions? :read)
+                    :can-write?         i/superuser?
                     :pre-insert         pre-insert
                     :pre-update         pre-update
                     :pre-cascade-delete pre-cascade-delete}))

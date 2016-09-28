@@ -27,9 +27,13 @@
 
 (defn- pre-cascade-delete [{:keys [id]}]
   (db/cascade-delete! 'Card        :database_id id)
-  (db/cascade-delete! 'Permissions :object [:like (str (perms/object-path id) "%")])
+  (db/cascade-delete! 'Permissions :object      [:like (str (perms/object-path id) "%")])
   (db/cascade-delete! 'Table       :db_id       id)
   (db/cascade-delete! 'RawTable    :database_id id))
+
+
+(defn- perms-objects-set [database _]
+  #{(perms/object-path (u/get-id database))})
 
 
 (u/strict-extend (class Database)
@@ -38,7 +42,8 @@
          {:hydration-keys     (constantly [:database :db])
           :types              (constantly {:details :json, :engine :keyword})
           :timestamped?       (constantly true)
-          :can-read?          (constantly true)
+          :perms-objects-set  perms-objects-set
+          :can-read?          (partial i/current-user-has-partial-permissions? :read)
           :can-write?         i/superuser?
           :post-insert        post-insert
           :post-select        post-select

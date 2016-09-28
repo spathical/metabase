@@ -379,7 +379,7 @@
                                                                 #{"/db/1/schema/public/table/1/" "/ocean/"}))
 
 
-;;; ------------------------------------------------------------ TODO - set-has-partial-permissions-for-set? ------------------------------------------------------------
+;;; ------------------------------------------------------------ set-has-partial-permissions-for-set? ------------------------------------------------------------
 
 (expect (perms/set-has-partial-permissions-for-set? #{"/"}
                                                     #{"/db/1/schema/public/table/2/" "/db/2/"}))
