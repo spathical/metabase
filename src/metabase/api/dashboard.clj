@@ -43,13 +43,9 @@
 (defendpoint GET "/:id"
   "Get `Dashboard` with ID."
   [id]
-  (let-404 [dash (Dashboard id)]
-    (read-check dash)
-    (->500 dash
-           (hydrate :creator [:ordered_cards [:card :creator] :series] :can_read :can_write)
-           (assoc :actor_id *current-user-id*)
-           (->> (events/publish-event :dashboard-read))
-           (dissoc :actor_id))))
+  (u/prog1 (-> (read-check Dashboard id)
+               (hydrate :creator [:ordered_cards [:card :creator] :series] :can_read :can_write))
+    (events/publish-event :dashboard-read (assoc <> :actor_id *current-user-id*))))
 
 
 (defendpoint PUT "/:id"
@@ -113,7 +109,6 @@
   "Remove a `DashboardCard` from a `Dashboard`."
   [id dashcardId]
   {dashcardId [Required String->Integer]}
-  (check-404 (db/exists? Dashboard :id id))
   (write-check Dashboard id)
   (when-let [dashboard-card (DashboardCard dashcardId)]
     (check-500 (delete-dashboard-card! dashboard-card *current-user-id*))
@@ -123,7 +118,7 @@
 (defendpoint GET "/:id/revisions"
   "Fetch `Revisions` for `Dashboard` with ID."
   [id]
-  (check-404 (db/exists? Dashboard :id id))
+  (read-check Dashboard id)
   (revision/revisions+details Dashboard id))
 
 
@@ -131,7 +126,6 @@
   "Revert a `Dashboard` to a prior `Revision`."
   [id :as {{:keys [revision_id]} :body}]
   {revision_id [Required Integer]}
-  (check-404 (db/exists? Dashboard :id id))
   (write-check Dashboard id)
   (revision/revert!
     :entity      Dashboard
