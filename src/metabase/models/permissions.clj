@@ -105,10 +105,12 @@
   [path permissions-path]
   (str/starts-with? path permissions-path))
 
-(defn- is-partial-permissions-for-object?
-  "Does PERMISSIONS-PATH grant access for a descendant of object PATH?"
+(defn is-partial-permissions-for-object?
+  "Does PERMISSIONS-PATH grant access for a descendant of object PATH?
+   (This will *not* return true for permissinos that grant full access)."
   [path permissions-path]
-  (str/starts-with? permissions-path path))
+  (and (not= path permissions-path)
+       (str/starts-with? permissions-path path)))
 
 
 (defn is-permissions-set?

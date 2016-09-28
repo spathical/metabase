@@ -30,9 +30,24 @@
 (expect false (perms/is-permissions-for-object? "/db/1/schema/PUBLIC/table/1/" "/db/1/schema/PUBLIC/table/2/"))
 
 
-;;; ------------------------------------------------------------ TODO - is-partial-permissions-for-object? ------------------------------------------------------------
+;;; ------------------------------------------------------------ is-partial-permissions-for-object? ------------------------------------------------------------
 
-;;; ------------------------------------------------------------ TODO - is-permissions-set ------------------------------------------------------------
+(expect (perms/is-partial-permissions-for-object? "/db/1/" "/db/1/schema/"))
+(expect (perms/is-partial-permissions-for-object? "/db/1/" "/db/1/schema/PUBLIC/"))
+(expect (perms/is-partial-permissions-for-object? "/db/1/" "/db/1/schema/PUBLIC/table/"))
+(expect (perms/is-partial-permissions-for-object? "/db/1/" "/db/1/schema/PUBLIC/table/1/"))
+(expect (perms/is-partial-permissions-for-object? "/db/1/" "/db/1/schema/PUBLIC/table/1/field/"))
+(expect (perms/is-partial-permissions-for-object? "/db/1/" "/db/1/schema/PUBLIC/table/1/field/2/"))
+
+(expect false (perms/is-partial-permissions-for-object? "/db/1/" "/"))
+(expect false (perms/is-partial-permissions-for-object? "/db/1/" "/db/"))
+(expect false (perms/is-partial-permissions-for-object? "/db/1/" "/db/1/"))
+(expect false (perms/is-partial-permissions-for-object? "/db/1/" "/db/2/"))
+(expect false (perms/is-partial-permissions-for-object? "/db/1/" "/db/2/native/"))
+(expect false (perms/is-partial-permissions-for-object? "/db/1/" "/db/2/native/read/"))
+
+
+;;; ------------------------------------------------------------ TODO - is-permissions-set? ------------------------------------------------------------
 
 ;;; ------------------------------------------------------------ TODO - set-has-full-permissions? ------------------------------------------------------------
 
