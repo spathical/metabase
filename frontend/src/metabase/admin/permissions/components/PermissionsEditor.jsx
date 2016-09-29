@@ -17,10 +17,13 @@ const PermissionsEditor = ({ grid, onUpdatePermission, onSave, onCancel, isDirty
                 onUpdatePermission={onUpdatePermission}
             />
             <div className="flex-no-shrink p4 flex border-top flex align-center">
-                <Confirm title="Save permissions?" action={onSave} content={
-                    <PermissionsConfirm diff={diff} />
-                }>
-                    <button className={cx("Button", { disabled: !isDirty })}>Save Changes</button>
+                <Confirm
+                    title="Save permissions?"
+                    action={onSave}
+                    content={<PermissionsConfirm diff={diff} />}
+                    triggerClasses={cx({ disabled: !isDirty })}
+                >
+                    <button className={cx("Button")}>Save Changes</button>
                 </Confirm>
                 <button className="Button Button--borderless" onClick={onCancel}>Cancel</button>
                 { saveError && <div className="mx2 text-error">{saveError}</div> }

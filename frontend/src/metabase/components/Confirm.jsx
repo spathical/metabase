@@ -10,12 +10,13 @@ export default class Confirm extends Component {
         title: PropTypes.string.isRequired,
         children: PropTypes.any,
         content: PropTypes.any,
+        triggerClasses: PropTypes.string,
     };
 
     render() {
-        const { action, children, title, content } = this.props;
+        const { action, children, title, content, triggerClasses } = this.props;
         return (
-            <ModalWithTrigger ref="modal" triggerElement={children}>
+            <ModalWithTrigger ref="modal" triggerElement={children} triggerClasses={triggerClasses}>
                 <ConfirmContent
                     title={title}
                     content={content}
