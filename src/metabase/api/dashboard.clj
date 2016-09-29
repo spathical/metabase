@@ -33,8 +33,8 @@
 (defendpoint POST "/"
   "Create a new `Dashboard`."
   [:as {{:keys [name parameters], :as dashboard} :body}]
-  {name         [Required NonEmptyString]
-   parameters   [ArrayOfMaps]}
+  {name       [Required NonEmptyString]
+   parameters [ArrayOfMaps]}
   (dashboard/create-dashboard! dashboard *current-user-id*))
 
 

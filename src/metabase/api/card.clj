@@ -214,9 +214,8 @@
 (defendpoint DELETE "/:id"
   "Delete a `Card`."
   [id]
-  (let-404 [card (Card id)]
-    (write-check card)
-    (u/prog1 (db/cascade-delete! Card,:id id)
+  (let [card (write-check Card id)]
+    (u/prog1 (db/cascade-delete! Card :id id)
       (events/publish-event :card-delete (assoc card :actor_id *current-user-id*)))))
 
 
