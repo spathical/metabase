@@ -53,6 +53,7 @@ const FixedHeaderGrid = ({
                                 rowsCount={1}
                                 columnWidth={columnWidth}
                                 rowHeight={columnHeaderHeight + SCROLLBAR_SIZE}
+                                onScroll={({ scrollLeft }) => onScroll({ scrollLeft })}
                                 scrollLeft={scrollLeft}
                             />
                         </div>
@@ -71,6 +72,7 @@ const FixedHeaderGrid = ({
                                 rowsCount={rowsCount + 1}
                                 columnWidth={rowHeaderWidth + SCROLLBAR_SIZE}
                                 rowHeight={(index) => index >= rowsCount ? paddingBottom : rowHeight}
+                                onScroll={({ scrollTop }) => onScroll({ scrollTop })}
                                 scrollTop={scrollTop}
                             />
                         </div>
@@ -88,7 +90,9 @@ const FixedHeaderGrid = ({
                                 rowsCount={rowsCount + 1}
                                 columnWidth={columnWidth}
                                 rowHeight={(index) => index >= rowsCount ? paddingBottom : rowHeight}
-                                onScroll={onScroll}
+                                onScroll={({ scrollTop, scrollLeft }) => onScroll({ scrollTop, scrollLeft })}
+                                scrollTop={scrollTop}
+                                scrollLeft={scrollLeft}
                             />
                         </div>
                     </div>
