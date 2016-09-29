@@ -45,8 +45,18 @@ const PermissionsConfirm = ({ diff }) =>
                     { database.native &&
                         <div>
                             <GroupName group={group} />
-                            {" will now be able to "}
-                            <span className={database.native === "read" ? "text-gold" : "text-success"}>{database.native}</span>
+                            { database.native === "none" ?
+                                " will no longer able to "
+                            :
+                                " will now be able to "
+                            }
+                            { database.native === "read" ?
+                                <span className="text-gold">read</span>
+                            : database.native === "write" ?
+                                <span className="text-success">write</span>
+                            :
+                                <span>read or write</span>
+                            }
                             {" native queries for "}
                             <DatabaseName database={database} />
                             {"."}

@@ -181,7 +181,7 @@ function diffDatabasePermissions(newPerms: GroupsPermissions, oldPerms: GroupsPe
         const oldFieldsPerm = getFieldsPermission(oldPerms, groupId, { databaseId: database.id, schemaName: table.schema || "", tableId: table.id });
         const newFieldsPerm = getFieldsPermission(newPerms, groupId, { databaseId: database.id, schemaName: table.schema || "", tableId: table.id });
         if (oldFieldsPerm !== newFieldsPerm) {
-            if (oldFieldsPerm === "none") {
+            if (newFieldsPerm === "none") {
                 databaseDiff.revokedTables[table.id] = { name: table.display_name };
             } else {
                 databaseDiff.grantedTables[table.id] = { name: table.display_name };
