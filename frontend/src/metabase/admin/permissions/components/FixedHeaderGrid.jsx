@@ -3,13 +3,13 @@
 import React, { Component, PropTypes } from "react";
 
 import { Grid, AutoSizer, ScrollSync } from 'react-virtualized'
-import 'react-virtualized/styles.css'; // only needs to be imported once
-
+import 'react-virtualized/styles.css';
 import S from "./FixedHeaderGrid.css";
 
 import cx from "classnames";
 
-const SCROLLBAR_SIZE = 10;
+// exact size doesn't matter, just needs to be wider than scrollbars to hide them
+const SCROLLBAR_SIZE = 50;
 
 const FixedHeaderGrid = ({
     className,
