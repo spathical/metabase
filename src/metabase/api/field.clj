@@ -23,9 +23,8 @@
 (defendpoint GET "/:id"
   "Get `Field` with ID."
   [id]
-  (->404 (Field id)
-         read-check
-         (hydrate [:table :db])))
+  (-> (read-check Field id)
+      (hydrate [:table :db])))
 
 
 (defendpoint PUT "/:id"
@@ -38,7 +37,6 @@
    points_of_interest NonEmptyString
    special_type       FieldType
    visibility_type    FieldVisibilityType}
-
   (let [field (write-check Field id)]
     (let [special_type       (keyword (get body :special_type (:special_type field)))
           visibility_type    (or visibility_type (:visibility_type field))

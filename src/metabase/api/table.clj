@@ -90,6 +90,8 @@
          :destination_id (:fk_target_field_id origin-field)
          :destination    (hydrate (Field (:fk_target_field_id origin-field)) :table)}))))
 
+;; TODO - Not sure this is used anymore
+;; TODO - shouldn't you have to be admin to re-sync a table?
 (defendpoint POST "/:id/sync"
   "Re-sync the metadata for this `Table`. This is ran asynchronously; the endpoint returns right away."
   [id]

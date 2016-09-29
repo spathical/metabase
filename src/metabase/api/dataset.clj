@@ -36,6 +36,7 @@
  (defendpoint POST "/duration"
    "Get historical query execution duration."
    [:as {{:keys [database] :as body} :body}]
+   ;; TODO - we also need to make sure the query belongs to this database
    (read-check Database database)
    ;; add sensible constraints for results limits on our query
    (let [query         (assoc body :constraints query-constraints)
