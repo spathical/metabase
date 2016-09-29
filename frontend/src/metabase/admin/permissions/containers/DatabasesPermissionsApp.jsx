@@ -3,13 +3,13 @@ import { connect } from "react-redux";
 
 import PermissionsEditor from "../components/PermissionsEditor.jsx";
 
-import { getDatabasesPermissionsGrid, getDirty, getSaveError, getDiff } from "../selectors";
+import { getDatabasesPermissionsGrid, getIsDirty, getSaveError, getDiff } from "../selectors";
 import { updatePermission, savePermissions, loadPermissions } from "../permissions"
 
 const mapStateToProps = (state, props) => {
     return {
         grid: getDatabasesPermissionsGrid(state, props),
-        isDirty: getDirty(state, props),
+        isDirty: getIsDirty(state, props),
         saveError: getSaveError(state, props),
         diff: getDiff(state, props)
     }

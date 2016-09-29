@@ -34,7 +34,7 @@ const getMetadata = createSelector(
     (databases) => databases && new Metadata(databases)
 );
 
-export const getDirty = createSelector(
+export const getIsDirty = createSelector(
     getPermissions, getOriginalPermissions,
     (permissions, originalPermissions) =>
         JSON.stringify(permissions) !== JSON.stringify(originalPermissions)

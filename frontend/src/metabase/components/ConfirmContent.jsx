@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from "react";
 
 import ModalContent from "metabase/components/ModalContent.jsx";
 
-const ConfirmContent = ({ title, content, onClose, onAction }) =>
+const ConfirmContent = ({ title, content, onClose, onAction, message = "Are you sure you want to do this?" }) =>
     <ModalContent
         title={title}
         closeFn={onClose}
@@ -10,7 +10,7 @@ const ConfirmContent = ({ title, content, onClose, onAction }) =>
         {content}
 
         <div className="Form-inputs mb4">
-            <p>Are you sure you want to do this?</p>
+            <p>{message}</p>
         </div>
 
         <div className="Form-actions">
