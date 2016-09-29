@@ -367,7 +367,7 @@
   [symb value :nillable]
   (checkp-with (complement s/blank?) symb value "value must be a non-empty string."))
 
-(defannotation PublicPerms
+(defannotation ^:deprecated PublicPerms
   "Param must be an integer and either `0` (no public permissions), `1` (public may read), or `2` (public may read and write)."
   [symb value :nillable]
   (annotation:Integer symb value)

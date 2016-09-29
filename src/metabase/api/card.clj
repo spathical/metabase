@@ -6,13 +6,14 @@
             (metabase [db :as db]
                       [events :as events])
             (metabase.models [hydrate :refer [hydrate]]
-                             [card :refer [Card] :as card]
+                             [card :refer [Card], :as card]
                              [card-favorite :refer [CardFavorite]]
                              [card-label :refer [CardLabel]]
                              [common :as common]
                              [database :refer [Database]]
                              [interface :as models]
                              [label :refer [Label]]
+                             [permissions :as perms]
                              [table :refer [Table]]
                              [view-log :refer [ViewLog]])
             (metabase [query-processor :as qp]
@@ -158,17 +159,16 @@
 
 (defendpoint POST "/"
   "Create a new `Card`."
-  [:as {{:keys [dataset_query description display name public_perms visualization_settings]} :body}]
+  [:as {{:keys [dataset_query description display name visualization_settings]} :body}]
   {name         [Required NonEmptyString]
-   public_perms [Required PublicPerms]
    display      [Required NonEmptyString]}
+  (check-403 (perms/set-has-full-permissions-for-set? @*current-user-permissions-set* (card/query-perms-set dataset_query :write)))
   (->> (db/insert! Card
          :creator_id             *current-user-id*
          :dataset_query          dataset_query
          :description            description
          :display                display
          :name                   name
-         :public_perms           public_perms
          :visualization_settings visualization_settings)
        (events/publish-event :card-create)))
 
@@ -185,9 +185,8 @@
 
 (defendpoint PUT "/:id"
   "Update a `Card`."
-  [id :as {{:keys [dataset_query description display name public_perms visualization_settings archived], :as body} :body}]
+  [id :as {{:keys [dataset_query description display name visualization_settings archived], :as body} :body}]
   {name                   NonEmptyString
-   public_perms           PublicPerms
    display                NonEmptyString
    visualization_settings Dict
    archived               Boolean}
@@ -197,7 +196,6 @@
       :description            description
       :display                display
       :name                   name
-      :public_perms           public_perms
       :visualization_settings visualization_settings
       :archived               archived)
     (let [event (cond

@@ -4,6 +4,7 @@
             [metabase.api.common :refer [*current-user-id* *current-user-permissions-set*]]
             [metabase.db :as db]
             (metabase.models [card-label :refer [CardLabel]]
+                             [common refer [perms-readwrite]]
                              [dependency :as dependency]
                              [interface :as i]
                              [label :refer [Label]]
@@ -14,7 +15,8 @@
             [metabase.query-processor.expand :as expand]
             [metabase.query-processor.permissions :as qp-perms]
             [metabase.query-processor.resolve :as resolve]
-            [metabase.util :as u]))
+            [metabase.util :as u]
+            [metabase.models.common :as common]))
 
 
 (i/defentity Card :report_card)
@@ -51,16 +53,21 @@
        :read  perms/native-read-path
        :write perms/native-readwrite-path) database-id)})
 
-(defn- perms-objects-set
-  "Return a set of required permissions object paths for CARD.
-   Optionally specify whether you want `:read` or `:write` permissions; default is `:read`.
-   (`:write` permissions only affects native queries)."
-  [{{query-type :type, :as query} :dataset_query} read-or-write]
+(defn query-perms-set
+  "Return a set of required permissions for *running* QUERY (if READ-OR-WRITE is `:read`) or *saving* it (if READ-OR-WRITE is `:write`)."
+  [{query-type :type, :as query} read-or-write]
   (cond
     (= query {})                     #{}
     (= (keyword query-type) :native) (permissions-path-set:native read-or-write query)
     (= (keyword query-type) :query)  (permissions-path-set:mbql query)
     :else                            (throw (Exception. (str "Invalid query type: " query-type)))))
+
+(defn- perms-objects-set
+  "Return a set of required permissions object paths for CARD.
+   Optionally specify whether you want `:read` or `:write` permissions; default is `:read`.
+   (`:write` permissions only affects native queries)."
+  [{query :dataset_query} read-or-write]
+  (query-perms-set query read-or-write))
 
 
 ;;; ------------------------------------------------------------ Dependencies ------------------------------------------------------------
@@ -101,7 +108,7 @@
 
 
 (defn- pre-insert [{:keys [dataset_query], :as card}]
-  (u/prog1 card
+  (u/prog1 (assoc card :public_perms common/perms-readwrite)
     ;; for native queries we need to make sure the user saving the card has native query permissions for the DB
     ;; because users can always see native Cards and we don't want someone getting around their lack of permissions that way
     (when (and *current-user-id*
