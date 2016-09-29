@@ -230,6 +230,9 @@ const EntityRowHeader = ({ entity }) =>
         }}
     >
         <h4 className="text-centered">{entity.name}</h4>
+        { entity.subtitle &&
+            <span className="mt1 h5 text-monospace text-normal text-centered text-grey-2 text-uppercase">{entity.subtitle}</span>
+        }
         { entity.link &&
             <Link className="mt1 link" to={entity.link.url}>{entity.link.name}</Link>
         }
