@@ -200,12 +200,13 @@ export const getDatabasesPermissionsGrid = createSelector(
                         databaseId: database.id
                     },
                     name: database.name,
-                    link: schemas.length === 1 ?
-                        { name: "View tables", url: schemas[0] === "" ?
-                            `/admin/permissions/databases/${database.id}/tables` :
-                            `/admin/permissions/databases/${database.id}/schemas/${schemas[0]}/tables`
-                        } :
-                        { name: "View schemas", url: `/admin/permissions/databases/${database.id}/schemas`}
+                    link:
+                        schemas.length === 0 || (schemas.length === 1 && schemas[0] === "") ?
+                            { name: "View tables", url: `/admin/permissions/databases/${database.id}/tables` }
+                        : schemas.length === 1 ?
+                            { name: "View tables", url: `/admin/permissions/databases/${database.id}/schemas/${schemas[0]}/tables` }
+                        :
+                            { name: "View schemas", url: `/admin/permissions/databases/${database.id}/schemas`}
                 }
             })
         }
