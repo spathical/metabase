@@ -5,7 +5,6 @@
             [expectations :refer :all]
             [metabase.db :as db]
             (metabase.models [card :refer [Card]]
-                             [common :as common]
                              [dashboard :refer [Dashboard]]
                              [database :refer [Database]]
                              [field :refer [Field]]
@@ -105,14 +104,12 @@
                                 :dataset_query          {}
                                 :display                :table
                                 :name                   (random-name)
-                                :public_perms           common/perms-none
                                 :visualization_settings {}})})
 
 (u/strict-extend (class Dashboard)
   WithTempDefaults
   {:with-temp-defaults (fn [_] {:creator_id   (rasta-id)
-                                :name         (random-name)
-                                :public_perms 0})})
+                                :name         (random-name)})})
 
 (u/strict-extend (class Database)
   WithTempDefaults

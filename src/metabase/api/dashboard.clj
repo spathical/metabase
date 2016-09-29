@@ -16,8 +16,7 @@
 
 (defn- dashboards-list [filter-option]
   (filter models/can-read? (-> (db/select Dashboard {:where (case (or filter-option :all)
-                                                              :all  [:or [:= :creator_id *current-user-id*]
-                                                                     [:> :public_perms common/perms-none]]
+                                                              :all  true
                                                               :mine [:= :creator_id *current-user-id*])})
                                (hydrate :creator :can_read :can_write))))
 
@@ -33,9 +32,8 @@
 
 (defendpoint POST "/"
   "Create a new `Dashboard`."
-  [:as {{:keys [name description parameters public_perms], :as dashboard} :body}]
+  [:as {{:keys [name parameters], :as dashboard} :body}]
   {name         [Required NonEmptyString]
-   public_perms [Required PublicPerms]
    parameters   [ArrayOfMaps]}
   (dashboard/create-dashboard! dashboard *current-user-id*))
 

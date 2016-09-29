@@ -11,9 +11,8 @@
             [metabase.test.util :refer [random-name with-temp]]))
 
 
-(defn create-dash [dash-name]
-  ((user->client :rasta) :post 200 "dashboard" {:name         dash-name
-                                                :public_perms 0}))
+(defn- create-dash! [dash-name]
+  ((user->client :rasta) :post 200 "dashboard" {:name dash-name}))
 
 ;; Check that the :dashboard_count delay returns the correct count of Dashboards a Card is in
 (expect
@@ -22,9 +21,9 @@
     (let [get-dashboard-count (fn [] (dashboard-count (Card card-id)))]
 
       [(get-dashboard-count)
-       (do (db/insert! DashboardCard :card_id card-id, :dashboard_id (:id (create-dash (random-name))), :parameter_mappings [])
+       (do (db/insert! DashboardCard :card_id card-id, :dashboard_id (:id (create-dash! (random-name))), :parameter_mappings [])
            (get-dashboard-count))
-       (do (db/insert! DashboardCard :card_id card-id, :dashboard_id (:id (create-dash (random-name))), :parameter_mappings [])
+       (do (db/insert! DashboardCard :card_id card-id, :dashboard_id (:id (create-dash! (random-name))), :parameter_mappings [])
            (get-dashboard-count))])))
 
 

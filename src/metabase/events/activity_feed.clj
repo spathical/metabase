@@ -40,7 +40,7 @@
 
 
 (defn- process-card-activity [topic object]
-  (let [details-fn  #(select-keys % [:name :description :public_perms])
+  (let [details-fn  #(select-keys % [:name :description])
         database-id (get-in object [:dataset_query :database])
         table-id    (get-in object [:dataset_query :query :source_table])]
     (activity/record-activity!
@@ -51,13 +51,13 @@
       :table-id    table-id)))
 
 (defn- process-dashboard-activity [topic object]
-  (let [create-delete-details #(select-keys % [:description :name :public_perms])
+  (let [create-delete-details #(select-keys % [:description :name])
         add-remove-card-details (fn [{:keys [dashcards] :as obj}]
                                   ;; we expect that the object has just a dashboard :id at the top level
                                   ;; plus a `:dashcards` attribute which is a vector of the cards added/removed
-                                  (-> (db/select-one [Dashboard :description :name :public_perms], :id (events/object->model-id topic obj))
+                                  (-> (db/select-one [Dashboard :description :name], :id (events/object->model-id topic obj))
                                       (assoc :dashcards (for [{:keys [id card_id]} dashcards]
-                                                          (-> (db/select-one [Card :name :description :public_perms], :id card_id)
+                                                          (-> (db/select-one [Card :name :description], :id card_id)
                                                               (assoc :id id)
                                                               (assoc :card_id card_id))))))]
     (activity/record-activity!
@@ -81,7 +81,7 @@
       :table-id    table-id)))
 
 (defn- process-pulse-activity [topic object]
-  (let [details-fn #(select-keys % [:name :public_perms])]
+  (let [details-fn #(select-keys % [:name])]
     (activity/record-activity!
       :topic       topic
       :object      object

@@ -52,8 +52,8 @@
 (def IRevisionedDefaults
   "Default implementations for `IRevisioned`."
   {:revert-to-revision! default-revert-to-revision!
-   :diff-map           default-diff-map
-   :diff-str           default-diff-str})
+   :diff-map            default-diff-map
+   :diff-str            default-diff-str})
 
 
 ;;; # Revision Entity

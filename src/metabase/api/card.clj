@@ -160,8 +160,9 @@
 (defendpoint POST "/"
   "Create a new `Card`."
   [:as {{:keys [dataset_query description display name visualization_settings]} :body}]
-  {name         [Required NonEmptyString]
-   display      [Required NonEmptyString]}
+  {name                   [Required NonEmptyString]
+   display                [Required NonEmptyString]
+   visualization_settings [Required Dict]}
   (check-403 (perms/set-has-full-permissions-for-set? @*current-user-permissions-set* (card/query-perms-set dataset_query :write)))
   (->> (db/insert! Card
          :creator_id             *current-user-id*

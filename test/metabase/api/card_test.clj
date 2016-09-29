@@ -143,13 +143,11 @@
                               :query    {:source-table table-id, :aggregation {:aggregation-type "count"}}}
      :display                "scalar"
      :visualization_settings {:global {:title nil}}
-     :public_perms           0
      :database_id            database-id ; these should be inferred automatically
      :table_id               table-id
      :query_type             "query"
      :archived               false}
     (dissoc ((user->client :rasta) :post 200 "card" {:name                   card-name
-                                                     :public_perms           0
                                                      :can_read               true
                                                      :can_write              true
                                                      :display                "scalar"
@@ -188,7 +186,6 @@
      :id                     $
      :display                "table"
      :visualization_settings {}
-     :public_perms           0
      :created_at             $
      :database_id            database-id ; these should be inferred from the dataset_query
      :table_id               table-id

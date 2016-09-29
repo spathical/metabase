@@ -4,7 +4,7 @@
             [metabase.api.common :refer [*current-user-id* *current-user-permissions-set*]]
             [metabase.db :as db]
             (metabase.models [card-label :refer [CardLabel]]
-                             [common refer [perms-readwrite]]
+                             [common :as common]
                              [dependency :as dependency]
                              [interface :as i]
                              [label :refer [Label]]
@@ -15,8 +15,7 @@
             [metabase.query-processor.expand :as expand]
             [metabase.query-processor.permissions :as qp-perms]
             [metabase.query-processor.resolve :as resolve]
-            [metabase.util :as u]
-            [metabase.models.common :as common]))
+            [metabase.util :as u]))
 
 
 (i/defentity Card :report_card)
@@ -130,6 +129,7 @@
   (merge i/IEntityDefaults
          {:hydration-keys     (constantly [:card])
           :types              (constantly {:display :keyword, :query_type :keyword, :dataset_query :json, :visualization_settings :json, :description :clob})
+          :default-fields     (constantly [:archived :created_at :creator_id :database_id :dataset_query :description :display :id :name :query_type :table_id :updated_at :visualization_settings]) ; everything except :public_perms
           :timestamped?       (constantly true)
           :can-read?          (partial i/current-user-has-full-permissions? :read)
           :can-write?         (partial i/current-user-has-full-permissions? :write)

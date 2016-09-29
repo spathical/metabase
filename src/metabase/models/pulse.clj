@@ -38,6 +38,7 @@
   i/IEntity
   (merge i/IEntityDefaults
          {:hydration-keys     (constantly [:pulse])
+          :default-fields     (constantly [:created_at :creator_id :id :name :updated_at]) ; everything except :public_perms
           :timestamped?       (constantly true)
           :can-read?          (constantly true)
           :can-write?         (constantly true)

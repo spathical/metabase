@@ -5,7 +5,6 @@
                       [http-client :as http]
                       [middleware :as middleware])
             (metabase.models [card :refer [Card]]
-                             [common :as common]
                              [database :refer [Database]]
                              [pulse :refer [Pulse], :as pulse])
             [metabase.test.data :refer :all]
@@ -29,7 +28,6 @@
   (tu/match-$ pulse
     {:id           $
      :name         $
-     :public_perms $
      :created_at   $
      :updated_at   $
      :creator_id   $
@@ -89,7 +87,6 @@
 (tu/expect-with-temp [Card [card1]
                       Card [card2]]
   {:name         "A Pulse"
-   :public_perms common/perms-readwrite
    :creator_id   (user->id :rasta)
    :creator      (user-details (fetch-user :rasta))
    :created_at   true
@@ -146,7 +143,6 @@
 (tu/expect-with-temp [Pulse [pulse]
                       Card  [card]]
   {:name         "Updated Pulse"
-   :public_perms common/perms-readwrite
    :creator_id   (user->id :rasta)
    :creator      (user-details (fetch-user :rasta))
    :created_at   true
