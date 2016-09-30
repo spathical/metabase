@@ -3,6 +3,7 @@
   (:require [compojure.core :refer [GET POST PUT DELETE]]
             [metabase.api.common :refer :all]
             [metabase.db :as db]
+            [metabase.metabot :as metabot]
             (metabase.models [database :as database]
                              [hydrate :refer [hydrate]]
                              [permissions :refer [Permissions], :as perms]
@@ -83,6 +84,9 @@
              :from      [[:permissions_group :pg]]
              :left-join [[:permissions_group_membership :pgm]
                          [:= :pg.id :pgm.group_id]]
+             :where     (if (metabot/metabot-enabled)
+                          true
+                          [:not= :pgm.group_id (:id (group/metabot))])
              :group-by  [:pg.id :pg.name]
              :order-by  [:%lower.pg.name]}))
 
