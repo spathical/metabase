@@ -129,15 +129,11 @@
   "Fetch a map describing the group memberships of various users.
    This map's format is:
 
-    {<user-id> [{:membership_id <int>
-                 :group_id      <int>
-                 :group_name    <str>}]}"
+    {<user-id> [{:membership_id <id>
+                 :group_id      <id>}]}"
   []
   (check-superuser)
-  (group-by :user_id (db/query {:select   [[:pgm.id :membership_id] :pgm.user_id :pgm.group_id [:pg.name :group_name]]
-                                :from     [[:permissions_group_membership :pgm]]
-                                :join     [[:permissions_group :pg] [:= :pgm.group_id :pg.id]]
-                                :order-by [[:group_name :desc]]})))
+  (group-by :user_id (db/select [PermissionsGroupMembership [:id :membership_id] :group_id :user_id])))
 
 (defendpoint POST "/membership"
   "Add a `User` to a `PermissionsGroup`. Returns updated list of members belonging to the group."
