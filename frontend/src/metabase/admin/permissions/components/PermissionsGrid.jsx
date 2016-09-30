@@ -33,7 +33,7 @@ const getBorderStyles = ({ isFirstColumn, isLastColumn, isFirstRow, isLastRow })
 
 const CELL_HEIGHT = 100;
 const CELL_WIDTH = 246;
-const HEADER_HEIGHT = 100;
+const HEADER_HEIGHT = 65;
 const HEADER_WIDTH = 170;
 
 const PERMISSIONS_UI = {
@@ -269,9 +269,6 @@ const EntityRowHeader = ({ entity, type }) =>
 
 const CornerHeader = ({ grid }) =>
     <div className="absolute bottom left right flex flex-column align-center pb1">
-        { grid.type !== "database" &&
-            <a className="link mb1" href="#" onClick={() => window.history.back()}>Back</a>
-        }
         <div className="flex align-center">
             <h3 className="ml1">{capitalize(pluralize(grid.type))}</h3>
         </div>
