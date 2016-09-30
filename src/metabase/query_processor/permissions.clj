@@ -1,5 +1,8 @@
 (ns metabase.query-processor.permissions
   "Logic related to whether a given user has permissions to run/edit a given query."
+  ;; TODO - everything in this namespace predates the newer implementations of Permissions checking on a model-by-model basis
+  ;;        They essentially do the same thing. This has better logging but the other has more flexibilitiy.
+  ;;        At some point we will need to merge the two approaches.
   (:require [clojure.tools.logging :as log]
             [honeysql.core :as hsql]
             [metabase.db :as db]
@@ -60,7 +63,7 @@
                                                          (:table-name source-or-join-table)))))
 
 
-(defn- throw-exception-if-user-cannot-run-query-referencing-table [user-id table]
+(defn- throw-if-cannot-run-query-referencing-table [user-id table]
   (log-permissions-debug-message 'yellow "Can User %d access Table %d (%s)?" user-id (table-id table) (table-identifier table))
   (or (user-can-run-query-referencing-table? user-id (table-id table))
       (throw-permissions-exception "You do not have permissions to run queries referencing table '%s'." (table-identifier table))))
@@ -68,15 +71,22 @@
 
 ;;; ------------------------------------------------------------ Permissions for Native Queries ------------------------------------------------------------
 
-(defn throw-exception-if-user-cannot-run-native-query-referencing-db
-  "Throw an exception if User with USER-ID doesn't have native query *read* permissions for DATABASE."
-  {:arglists '([user-id database])}
+(defn- throw-if-cannot-run-new-native-query-referencing-db
+  "Throw an exception if User with USER-ID doesn't have native query *readwrite* permissions for DATABASE."
   [user-id {database-id :id, database-name :name}]
   {:pre [(integer? database-id)]}
-  (log-permissions-debug-message 'yellow "Can User %d run native queries against Database %d (%s)?" user-id database-id database-name)
-  (or (permissions-for-object user-id (perms/native-read-path database-id))
-      (throw-permissions-exception "You do not have permissions to run native queries against database '%s'." database-name)))
+  (log-permissions-debug-message 'yellow "Can User %d run *new* native queries against Database %d (%s)?" user-id database-id database-name)
+  (or (permissions-for-object user-id (perms/native-readwrite-path database-id))
+      (throw-permissions-exception "You do not have permissions to run new native queries against database '%s'." database-name)))
 
+
+(defn- throw-if-cannot-run-existing-native-query-referencing-db
+  "Throw an exception if User with USER-ID doesn't have native query *read* permissions for DATABASE."
+  [user-id {database-id :id, database-name :name}]
+  {:pre [(integer? database-id)]}
+  (log-permissions-debug-message 'yellow "Can User %d run *existing* native queries against Database %d (%s)?" user-id database-id database-name)
+  (or (permissions-for-object user-id (perms/native-read-path database-id))
+      (throw-permissions-exception "You do not have permissions to run existing native queries against database '%s'." database-name)))
 
 
 ;;; ------------------------------------------------------------ Middleware ------------------------------------------------------------
@@ -89,11 +99,11 @@
     (cond
       ;; for native queries that are *not* part of an existing card, check that we have native permissions for the DB
       (and native? (not card-id))
-      (throw-exception-if-user-cannot-run-native-query-referencing-db user-id database)
+      (throw-if-cannot-run-new-native-query-referencing-db user-id database)
       ;; for native queries that *are* part of an existing card, no checks are done
       native?
-      (log-permissions-debug-message 'green "Yes ✅  because Card %d is a native query." card-id)
+      (throw-if-cannot-run-existing-native-query-referencing-db user-id database)
       ;; for MBQL queries, check that we can run against the source-table. and each of the join-tables, if any
       (not native?)
       (doseq [table (cons source-table join-tables)]
-        (throw-exception-if-user-cannot-run-query-referencing-table user-id table)))))
+        (throw-if-cannot-run-query-referencing-table user-id table)))))
