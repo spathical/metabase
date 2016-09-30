@@ -4,7 +4,11 @@ class EditBar extends Component {
     static propTypes = {
         title: PropTypes.string.isRequires,
         subtitle: PropTypes.string,
-        buttons: PropTypes.element.isRequired
+        buttons: PropTypes.oneOf([
+                     PropTypes.element,
+                     PropTypes.array
+                 ]).isRequired,
+
     }
 
     render () {
@@ -21,4 +25,4 @@ class EditBar extends Component {
     }
 }
 
-export default EditBar
+export default EditBar;
