@@ -18,7 +18,7 @@ const AddRow = ({ value, isValid, placeholder, onKeyDown, onChange, onDone, onCa
             Cancel
         </span>
         <button className={cx("Button ml2", {"Button--primary": !!isValid})} disabled={!isValid} onClick={onDone}>
-            Done
+            Add
         </button>
     </div>
 
