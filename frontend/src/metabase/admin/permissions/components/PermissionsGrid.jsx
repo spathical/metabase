@@ -18,7 +18,7 @@ import cx from "classnames";
 import S from "./PermissionsGrid.css";
 
 const LIGHT_BORDER = "rgb(225, 226, 227)";
-const DARK_BORDER = "rgb(114, 116, 121)";
+const DARK_BORDER = "rgb(161, 163, 169)";
 const BORDER_RADIUS = 4;
 
 const getBorderStyles = ({ isFirstColumn, isLastColumn, isFirstRow, isLastRow }) => ({
@@ -67,19 +67,19 @@ const OPTIONS_UI = {
         bgColor: "#FEFAEE"
     },
     "all": {
-        title: "Unrestricted access",
+        title: "Grant unrestricted access",
         icon: "check",
         iconColor: "#9CC177",
         bgColor: "#F6F9F2"
     },
     "controlled": {
-        title: "Limited access",
-        icon: "tilde",
+        title: "Limit access",
+        icon: "permissionsLimited",
         iconColor: "#F9D45C",
         bgColor: "#FEFAEE"
     },
     "none": {
-        title: "No access",
+        title: "Revoke access",
         icon: "close",
         iconColor: "#EEA5A5",
         bgColor: "#FDF3F3"
@@ -127,8 +127,23 @@ class GroupPermissionCell extends Component {
         super(props, context);
         this.state = {
             confirmText: null,
-            confirmAction: null
+            confirmAction: null,
+            hovered: false
         }
+    }
+    hoverEnter () {
+        // only change the hover state if the group is not the admin
+        // this helps indicate to users that the admin group is different
+        if (this.props.group.name !== "Admin" ) {
+            return this.setState({ hovered: true });
+        }
+        return false
+    }
+    hoverExit () {
+        if (this.props.group.name !== "Admin" ) {
+            return this.setState({ hovered: false });
+        }
+        return false
     }
     render() {
         const { permission, group, entity, onUpdatePermission } = this.props;
@@ -139,11 +154,20 @@ class GroupPermissionCell extends Component {
         let isEditable = this.props.isEditable && options.filter(option => option !== value).length > 0;
 
         return (
-            <div className="flex-full flex layout-centered border-column-divider" style={{
-                borderColor: LIGHT_BORDER,
-                height: CELL_HEIGHT - 1,
-                backgroundColor: getOptionUi(value).bgColor
-            }}>
+            <div
+                className={cx(
+                    'flex-full flex layout-centered border-column-divider',
+                    { 'cursor-pointer' : group.name !== 'Admin' },
+                    { 'disabled' : group.name === 'Admin'}
+                )}
+                style={{
+                    borderColor: LIGHT_BORDER,
+                    height: CELL_HEIGHT - 1,
+                    backgroundColor: this.state.hovered ? getOptionUi(value).iconColor : getOptionUi(value).bgColor,
+                }}
+                onMouseEnter={() => this.hoverEnter()}
+                onMouseLeave={() => this.hoverExit()}
+            >
                 <PopoverWithTrigger
                     ref="popover"
                     disabled={!isEditable}
@@ -151,16 +175,11 @@ class GroupPermissionCell extends Component {
                     triggerClasses="cursor-pointer"
                     triggerElement={
                         <Tooltip tooltip={getOptionUi(value).title}>
-                            <div
-                                className={cx(S.cellButton, { [S.cellButton__editable]: isEditable })}
-                                style={{ backgroundColor: getOptionUi(value).bgColor }}
-                            >
-                                <Icon
-                                    name={getOptionUi(value).icon}
-                                    size={28}
-                                    style={{ color: getOptionUi(value).iconColor }}
-                                />
-                            </div>
+                            <Icon
+                                name={getOptionUi(value).icon}
+                                size={28}
+                                style={{ color: this.state.hovered ? '#fff' : getOptionUi(value).iconColor }}
+                            />
                         </Tooltip>
                    }
                 >
@@ -204,7 +223,7 @@ class GroupPermissionCell extends Component {
 
 const AccessOption = ({ value, option, onChange }) =>
     <div
-        className={cx("flex py2 px2 align-center bg-brand-hover text-white-hover", {
+        className={cx("flex py2 px2 align-center bg-brand-hover text-white-hover cursor-pointer", {
             "bg-brand text-white": value === option
         })}
         onClick={() => onChange(option)}
@@ -215,23 +234,31 @@ const AccessOption = ({ value, option, onChange }) =>
 
 const AccessOptionList = ({ value, options, onChange }) =>
     <ul className="py1">
-        { options.map(option =>
-            <li key={option}>
-                <AccessOption value={value} option={option} onChange={onChange} />
-            </li>
+        { options.map(option => {
+            if( value !== option ) {
+                return (
+                    <li key={option}>
+                        <AccessOption value={value} option={option} onChange={onChange} />
+                    </li>
+               )
+            }
+        }
         )}
     </ul>
 
-const EntityRowHeader = ({ entity }) =>
+const EntityRowHeader = ({ entity, type }) =>
     <div
-        className="flex flex-column layout-centered px1"
+        className="flex flex-column justify-center px1 pl4 ml2"
         style={{
             height: CELL_HEIGHT
         }}
     >
-        <h4 className="text-centered">{entity.name}</h4>
+        <div className="relative flex align-center">
+            <Icon name={type} className="absolute" style={{ left: -28 }} />
+            <h4>{entity.name}</h4>
+        </div>
         { entity.subtitle &&
-            <span className="mt1 h5 text-monospace text-normal text-centered text-grey-2 text-uppercase">{entity.subtitle}</span>
+            <span className="mt1 h5 text-monospace text-normal text-grey-2 text-uppercase">{entity.subtitle}</span>
         }
         { entity.link &&
             <Link className="mt1 link" to={entity.link.url}>{entity.link.name}</Link>
@@ -244,7 +271,6 @@ const CornerHeader = ({ grid }) =>
             <a className="link mb1" href="#" onClick={() => window.history.back()}>Back</a>
         }
         <div className="flex align-center">
-            <Icon name={grid.type} size={16} />
             <h3 className="ml1">{capitalize(pluralize(grid.type))}</h3>
         </div>
     </div>
@@ -287,6 +313,7 @@ const PermissionsGrid = ({ className, grid, onUpdatePermission }) => {
             }
             renderRowHeader={({ rowIndex }) =>
                 <EntityRowHeader
+                    type={grid.type}
                     entity={grid.entities[rowIndex]}
                     isFirstRow={rowIndex === 0}
                     isLastRow={rowIndex === grid.entities.length - 1}
