@@ -1,5 +1,6 @@
 (ns metabase.models.pulse
-  (:require [medley.core :as m]
+  (:require [clojure.set :as set]
+            [medley.core :as m]
             [metabase.db :as db]
             [metabase.events :as events]
             (metabase.models [card :refer [Card]]
@@ -9,6 +10,16 @@
                              [pulse-card :refer [PulseCard]]
                              [pulse-channel :refer [PulseChannel] :as pulse-channel])
             [metabase.util :as u]))
+
+
+;;; ------------------------------------------------------------ Perms Checking ------------------------------------------------------------
+
+(defn- perms-objects-set [pulse read-or-write]
+  (u/prog1 (set (when-let [card-ids (db/select-field :card_id PulseCard, :pulse_id (u/get-id pulse))]
+                  (apply set/union (for [card (db/select [Card :dataset_query], :id [:in card-ids])]
+                                     (i/perms-objects-set card read-or-write)))))
+    (println "perms-object-set:" <>) ; NOCOMMIT
+    ))
 
 
 ;;; ------------------------------------------------------------ Entity & Lifecycle ------------------------------------------------------------
@@ -29,8 +40,10 @@
          {:hydration-keys     (constantly [:pulse])
           :default-fields     (constantly [:created_at :creator_id :id :name :updated_at]) ; everything except :public_perms
           :timestamped?       (constantly true)
-          :can-read?          (constantly true)
-          :can-write?         (constantly true)
+          :perms-objects-set  perms-objects-set
+          ;; I'm not 100% sure this covers everything. If a user is subscribed to a pulse they're still allowed to know it exists, right?
+          :can-read?          (partial i/current-user-has-full-permissions? :read)
+          :can-write?         (partial i/current-user-has-full-permissions? :write)
           :pre-insert         pre-insert
           :pre-cascade-delete pre-cascade-delete}))
 
