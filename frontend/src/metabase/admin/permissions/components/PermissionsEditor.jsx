@@ -16,7 +16,17 @@ const PermissionsEditor = ({ grid, onUpdatePermission, onSave, onCancel, isDirty
                 <EditBar
                     title="You've made changes to permissions."
                     buttons={[
-                        <button className="Button Button--borderless" onClick={onCancel}>Cancel</button>,
+                        <Confirm
+                            title="Discard changes?"
+                            action={onCancel}
+                            content={
+                                <div>No changes to permissions will be made.</div>
+                            }
+                        >
+                            <button className="Button Button--borderless">
+                                Cancel
+                            </button>
+                        </Confirm>,
                         <Confirm
                             title="Save permissions?"
                             action={onSave}
