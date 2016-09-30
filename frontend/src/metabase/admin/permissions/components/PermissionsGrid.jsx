@@ -157,32 +157,41 @@ class GroupPermissionCell extends Component {
         let isEditable = this.props.isEditable && options.filter(option => option !== value).length > 0;
 
         return (
-            <div
-                className={cx(
-                    'flex-full flex layout-centered border-column-divider',
-                    { 'cursor-pointer' : group.name !== 'Admin' },
-                    { 'disabled' : group.name === 'Admin'}
-                )}
-                style={{
-                    borderColor: LIGHT_BORDER,
-                    height: CELL_HEIGHT - 1,
-                    backgroundColor: this.state.hovered ? getOptionUi(value).iconColor : getOptionUi(value).bgColor,
-                }}
-                onMouseEnter={() => this.hoverEnter()}
-                onMouseLeave={() => this.hoverExit()}
-            >
                 <PopoverWithTrigger
                     ref="popover"
                     disabled={!isEditable}
-                    className="flex-full"
-                    triggerClasses="cursor-pointer"
+                    triggerClasses="cursor-pointer flex flex-full layout-centered border-column-divider"
                     triggerElement={
                         <Tooltip tooltip={getOptionUi(value).tooltip}>
-                            <Icon
-                                name={getOptionUi(value).icon}
-                                size={28}
-                                style={{ color: this.state.hovered ? '#fff' : getOptionUi(value).iconColor }}
-                            />
+                            <div
+                                className={cx(
+                                    'flex-full flex layout-centered',
+                                    { 'cursor-pointer' : group.name !== 'Admin' },
+                                    { 'disabled' : group.name === 'Admin'}
+                                )}
+                                style={{
+                                    borderColor: LIGHT_BORDER,
+                                    height: CELL_HEIGHT - 1,
+                                    backgroundColor: this.state.hovered ? getOptionUi(value).iconColor : getOptionUi(value).bgColor,
+                                }}
+                                onMouseEnter={() => this.hoverEnter()}
+                                onMouseLeave={() => this.hoverExit()}
+                            >
+                                <Icon
+                                    name={getOptionUi(value).icon}
+                                    size={28}
+                                    style={{ color: this.state.hovered ? '#fff' : getOptionUi(value).iconColor }}
+                                />
+                                { this.state.confirmText &&
+                                    <Modal>
+                                        <ConfirmContent
+                                            {...this.state.confirmText}
+                                            onAction={this.state.confirmAction}
+                                            onClose={() => this.setState({ confirmText: null, confirmAction: null })}
+                                        />
+                                    </Modal>
+                                }
+                            </div>
                         </Tooltip>
                    }
                 >
@@ -210,16 +219,6 @@ class GroupPermissionCell extends Component {
                         }}
                     />
                 </PopoverWithTrigger>
-                { this.state.confirmText &&
-                    <Modal>
-                        <ConfirmContent
-                            {...this.state.confirmText}
-                            onAction={this.state.confirmAction}
-                            onClose={() => this.setState({ confirmText: null, confirmAction: null })}
-                        />
-                    </Modal>
-                }
-            </div>
         );
     }
 }
