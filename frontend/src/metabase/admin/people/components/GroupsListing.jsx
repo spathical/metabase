@@ -16,6 +16,8 @@ import UserAvatar from "metabase/components/UserAvatar.jsx";
 import AdminContentTable from "metabase/components/AdminContentTable.jsx";
 import AdminPaneLayout from "metabase/components/AdminPaneLayout.jsx";
 
+import AddRow from "./AddRow.jsx";
+
 const PermissionsAPI = new AngularResourceProxy("Permissions", ["createGroup", "deleteGroup", "updateGroup"]);
 
 
@@ -24,20 +26,16 @@ const PermissionsAPI = new AngularResourceProxy("Permissions", ["createGroup", "
 function AddGroupRow({ text, onCancelClicked, onCreateClicked, onTextChange }) {
     const textIsValid = text && text.length;
     return (
-        <tr className="bordered border-brand rounded">
-            <td>
-                <Input className="AdminInput h3" type="text" placeholder="Justice League" autoFocus={true} value={text}
-                       onChange={(e) => onTextChange(e.target.value)}
+        <tr>
+            <td colSpan="3" style={{ padding: 0 }}>
+                <AddRow
+                    value={text}
+                    isValid={textIsValid}
+                    placeholder="Justice League"
+                    onChange={(e) => onTextChange(e.target.value)}
+                    onDone={onCreateClicked}
+                    onCancel={onCancelClicked}
                 />
-            </td>
-            <td />
-            <td className="text-right">
-                <span className="link no-decoration cursor-pointer" onClick={onCancelClicked}>
-                    Cancel
-                </span>
-                <button className={cx("Button ml2", {"Button--primary": textIsValid})} disabled={!textIsValid} onClick={onCreateClicked}>
-                    Create
-                </button>
             </td>
         </tr>
     );
