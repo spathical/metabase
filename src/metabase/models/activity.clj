@@ -12,21 +12,20 @@
 
 ;;; ------------------------------------------------------------ Perms Checking ------------------------------------------------------------
 
+(def ^:private model->entity
+  {"card"      Card
+   "dashboard" Dashboard
+   "metric"    Metric
+   "pulse"     Pulse
+   "segment"   Segment})
+
 (defn- perms-objects-set [{model :model, model-id :model_id} read-or-write]
-  (if (or (= model "install")
-          (= model "user"))
-    ;; install and user signup events are things everyone can see
-    #{}
-    ;; otherwise if the object exists defer to its entity's implementation
-    (if-let [object ((case model
-                       "card"      Card
-                       "dashboard" Dashboard
-                       "metric"    Metric
-                       "pulse"     Pulse
-                       "segment"   Segment) model-id)]
-      (i/perms-objects-set object read-or-write)
-      ;; otherwise if object doesn't exist return empty perms set
-      #{})))
+  ;; if the model is something we care about checking and the object exists, defer to the entity's implementation
+  (or (when-let [entity (model->entity model)]
+        (when-let [object (entity model-id)]
+          (i/perms-objects-set object read-or-write)))
+      ;; otherwise just return empty set
+      #{}))
 
 
 
