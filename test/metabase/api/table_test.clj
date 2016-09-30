@@ -119,7 +119,7 @@
                       Table    [{table-id :id}    {:db_id database-id}]]
   "You don't have permissions to do that."
   (do
-    (perms/delete-related-permissions! (perms-group/default) (perms/object-path database-id))
+    (perms/delete-related-permissions! (perms-group/all-users) (perms/object-path database-id))
     ((user->client :rasta) :get 403 (str "table/" table-id))))
 
 ;; ## GET /api/table/:id/fields

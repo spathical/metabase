@@ -39,11 +39,11 @@
 (defn- post-insert [{user-id :id, superuser? :is_superuser, :as user}]
   (u/prog1 user
     ;; add the newly created user to the magic perms groups
-    (binding [perm-membership/*allow-changing-default-group-members* true]
-      #_(log/info (format "Adding user %d to Default permissions group..." user-id))
+    (binding [perm-membership/*allow-changing-all-users-group-members* true]
+      #_(log/info (format "Adding user %d to All Users permissions group..." user-id))
       (db/insert! PermissionsGroupMembership
         :user_id  user-id
-        :group_id (:id (perm-group/default))))
+        :group_id (:id (perm-group/all-users))))
     (when superuser?
       #_(log/info (format "Adding user %d to Admin permissions group..." user-id))
       (db/insert! PermissionsGroupMembership
@@ -75,7 +75,7 @@
     (or first_name last_name) (assoc :common_name (str first_name " " last_name))))
 
 (defn- pre-cascade-delete [{:keys [id]}]
-  (binding [perm-membership/*allow-changing-default-group-members* true]
+  (binding [perm-membership/*allow-changing-all-users-group-members* true]
     (doseq [[model k] [['Activity                   :user_id]
                        ['Card                       :creator_id]
                        ['Dashboard                  :creator_id]

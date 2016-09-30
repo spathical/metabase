@@ -14,8 +14,8 @@
 
 (defn- post-insert [{database-id :id, :as database}]
   (u/prog1 database
-    ;; add this database to the default and metabot permissions groups
-    (doseq [{group-id :id} [(perm-group/default)
+    ;; add this database to the all users and metabot permissions groups
+    (doseq [{group-id :id} [(perm-group/all-users)
                             (perm-group/metabot)]]
       (perms/grant-full-db-permissions! group-id database-id))))
 

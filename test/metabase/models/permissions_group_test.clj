@@ -18,25 +18,25 @@
 
 
 ;;; ---------------------------------------- check that we can get the magic permissions groups through the helper functions ----------------------------------------
-(expect PermissionsGroupInstance (perm-group/default))
+(expect PermissionsGroupInstance (perm-group/all-users))
 (expect PermissionsGroupInstance (perm-group/admin))
 (expect PermissionsGroupInstance (perm-group/metabot))
 
-(expect "Default" (:name (perm-group/default)))
-(expect "Admin"   (:name (perm-group/admin)))
-(expect "MetaBot" (:name (perm-group/metabot)))
+(expect "All Users"      (:name (perm-group/all-users)))
+(expect "Administrators" (:name (perm-group/admin)))
+(expect "MetaBot"        (:name (perm-group/metabot)))
 
 
 ;;; make sure we're not allowed to delete the magic groups
-(expect Exception (db/cascade-delete! PermissionsGroup :id (:id (perm-group/default))))
+(expect Exception (db/cascade-delete! PermissionsGroup :id (:id (perm-group/all-users))))
 (expect Exception (db/cascade-delete! PermissionsGroup :id (:id (perm-group/admin))))
 (expect Exception (db/cascade-delete! PermissionsGroup :id (:id (perm-group/metabot))))
 
 
 ;;; make sure we're not allowed to edit the magic groups
-(expect Exception (db/update! PermissionsGroup (:id (perm-group/default)) :name "Cool People"))
-(expect Exception (db/update! PermissionsGroup (:id (perm-group/admin))   :name "Cool People"))
-(expect Exception (db/update! PermissionsGroup (:id (perm-group/metabot)) :name "Cool People"))
+(expect Exception (db/update! PermissionsGroup (:id (perm-group/all-users)) :name "Cool People"))
+(expect Exception (db/update! PermissionsGroup (:id (perm-group/admin))     :name "Cool People"))
+(expect Exception (db/update! PermissionsGroup (:id (perm-group/metabot))   :name "Cool People"))
 
 
 ;;; ---------------------------------------- newly created users should get added to the appropriate magic groups ----------------------------------------
@@ -44,7 +44,7 @@
   (tu/with-temp User [{user-id :id}]
     (db/exists? PermissionsGroupMembership
       :user_id  user-id
-      :group_id (:id (perm-group/default)))))
+      :group_id (:id (perm-group/all-users)))))
 
 (expect
   false
@@ -67,7 +67,7 @@
     (tu/with-temp User [{user-id :id} {:is_superuser true}]
       (db/exists? PermissionsGroupMembership
         :user_id  user-id
-        :group_id (:id (perm-group/default))))))
+        :group_id (:id (perm-group/all-users))))))
 
 (expect
   (tu/with-temp User [{user-id :id} {:is_superuser true}]
@@ -89,7 +89,7 @@
 
 (expect
   (tu/with-temp Database [{database-id :id}]
-    (group-has-full-access? (:id (perm-group/default)) (perms/object-path database-id))))
+    (group-has-full-access? (:id (perm-group/all-users)) (perms/object-path database-id))))
 
 (expect
   (tu/with-temp Database [{database-id :id}]

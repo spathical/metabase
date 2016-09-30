@@ -203,7 +203,7 @@
   "You don't have permissions to do that."
   (do
     ;; revoke permissions for default group to this database
-    (perms/delete-related-permissions! (perms-group/default) (perms/object-path database-id))
+    (perms/delete-related-permissions! (perms-group/all-users) (perms/object-path database-id))
     ;; now a non-admin user shouldn't be able to fetch this card
     ((user->client :rasta) :get 403 (str "card/" (:id card)))))
 

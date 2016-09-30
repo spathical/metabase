@@ -19,14 +19,14 @@
                    (log/info (u/format-color 'green "Created magic permissions group '%s' (ID = %d)" group-name (:id <>))))))))
 
 (def ^{:arglists '([])} ^metabase.models.permissions_group.PermissionsGroupInstance
-  default
-  "Fetch the `Default` permissions group, creating it if needed."
-  (group-fetch-fn "Default"))
+  all-users
+  "Fetch the `All Users` permissions group, creating it if needed."
+  (group-fetch-fn "All Users"))
 
 (def ^{:arglists '([])} ^metabase.models.permissions_group.PermissionsGroupInstance
   admin
-  "Fetch the `Admin` permissions group, creating it if needed."
-  (group-fetch-fn "Admin"))
+  "Fetch the `Administators` permissions group, creating it if needed."
+  (group-fetch-fn "Administrators"))
 
 (def ^{:arglists '([])} ^metabase.models.permissions_group.PermissionsGroupInstance
   metabot
@@ -52,7 +52,7 @@
   "Make sure we're not trying to edit/delete one of the magic groups, or throw an exception."
   [{id :id}]
   {:pre [(integer? id)]}
-  (doseq [magic-group [(default)
+  (doseq [magic-group [(all-users)
                        (admin)
                        (metabot)]]
     (when (= id (:id magic-group))

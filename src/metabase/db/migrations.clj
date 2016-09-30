@@ -220,13 +220,13 @@
 
 ;; Add users to default permissions groups. This will cause the groups to be created if needed as well.
 (defmigration add-users-to-default-permissions-groups
-  (let [{default-group-id :id} (perm-group/default)
-        {admin-group-id :id}   (perm-group/admin)]
-    (binding [perm-membership/*allow-changing-default-group-members* true]
+  (let [{all-users-group-id :id} (perm-group/all-users)
+        {admin-group-id :id}     (perm-group/admin)]
+    (binding [perm-membership/*allow-changing-all-users-group-members* true]
       (doseq [{user-id :id, superuser? :is_superuser} (db/select [User :id :is_superuser])]
         (db/insert! PermissionsGroupMembership
           :user_id  user-id
-          :group_id default-group-id)
+          :group_id all-users-group-id)
         (when superuser?
           (db/insert! PermissionsGroupMembership
             :user_id  user-id
@@ -244,7 +244,7 @@
 ;; add existing databases to default permissions groups. default and metabot groups have entries for each individual DB
 (defmigration add-databases-to-magic-permissions-groups
   (let [db-ids (db/select-ids Database)]
-    (doseq [{group-id :id} [(perm-group/default)
+    (doseq [{group-id :id} [(perm-group/all-users)
                             (perm-group/metabot)]
             database-id    db-ids]
       (u/ignore-exceptions
@@ -252,27 +252,41 @@
           :object   (perms/object-path database-id)
           :group_id group-id)))))
 
+;; this is purely for development convenience. Partway through development of Permissions the magic group names were changed.
+;; TODO - this can be removed once permissions is finished and ready to ship. NOCOMMIT
+(defmigration fix-legacy-magic-group-names
+  (let [change-name (fn [old new]
+                      (when (and (db/exists? 'PermissionsGroup :name old)
+                                 (not (db/exists? 'PermissionsGroup :name new)))
+                        (db/update-where! 'PermissionsGroup {:name old}
+                          :name new)))]
+    (change-name "Admin" "Administrators")
+    (change-name "Default" "All Users")))
 
-;;; New type system
+
+;;; +------------------------------------------------------------------------------------------------------------------------+
+;;; |                                                    NEW TYPE SYSTEM                                                     |
+;;; +------------------------------------------------------------------------------------------------------------------------+
+
 (def ^:private ^:const old-special-type->new-type
-  {"avatar"                 "type/AvatarURL"
-   "category"               "type/Category"
-   "city"                   "type/City"
-   "country"                "type/Country"
-   "desc"                   "type/Description"
-   "fk"                     "type/FK"
-   "id"                     "type/PK"
-   "image"                  "type/ImageURL"
-   "json"                   "type/SerializedJSON"
-   "latitude"               "type/Latitude"
-   "longitude"              "type/Longitude"
-   "name"                   "type/Name"
-   "number"                 "type/Number"
-   "state"                  "type/State"
-   "timestamp_milliseconds" "type/UNIXTimestampMilliseconds"
-   "timestamp_seconds"      "type/UNIXTimestampSeconds"
-   "url"                    "type/URL"
-   "zip_code"               "type/ZipCode"})
+    {"avatar"                 "type/AvatarURL"
+     "category"               "type/Category"
+     "city"                   "type/City"
+     "country"                "type/Country"
+     "desc"                   "type/Description"
+     "fk"                     "type/FK"
+     "id"                     "type/PK"
+     "image"                  "type/ImageURL"
+     "json"                   "type/SerializedJSON"
+     "latitude"               "type/Latitude"
+     "longitude"              "type/Longitude"
+     "name"                   "type/Name"
+     "number"                 "type/Number"
+     "state"                  "type/State"
+     "timestamp_milliseconds" "type/UNIXTimestampMilliseconds"
+     "timestamp_seconds"      "type/UNIXTimestampSeconds"
+     "url"                    "type/URL"
+     "zip_code"               "type/ZipCode"})
 
 ;; make sure the new types are all valid
 (when-not config/is-prod?
