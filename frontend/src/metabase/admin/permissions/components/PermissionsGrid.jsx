@@ -56,30 +56,35 @@ const PERMISSIONS_UI = {
 const OPTIONS_UI = {
     "write": {
         title: "Write raw queries",
+        tooltip: "Can write raw queries",
         icon: "sql",
         iconColor: "#9CC177",
         bgColor: "#F6F9F2"
     },
     "read": {
         title: "View raw queries",
+        tooltip: "Can view raw queries",
         icon: "eye",
         iconColor: "#F9D45C",
         bgColor: "#FEFAEE"
     },
     "all": {
         title: "Grant unrestricted access",
+        tooltip: "Unrestricted access",
         icon: "check",
         iconColor: "#9CC177",
         bgColor: "#F6F9F2"
     },
     "controlled": {
         title: "Limit access",
+        tooltip: "Limited access",
         icon: "permissionsLimited",
         iconColor: "#F9D45C",
         bgColor: "#FEFAEE"
     },
     "none": {
         title: "Revoke access",
+        tooltip: "No access",
         icon: "close",
         iconColor: "#EEA5A5",
         bgColor: "#FDF3F3"
@@ -174,7 +179,7 @@ class GroupPermissionCell extends Component {
                     className="flex-full"
                     triggerClasses="cursor-pointer"
                     triggerElement={
-                        <Tooltip tooltip={getOptionUi(value).title}>
+                        <Tooltip tooltip={getOptionUi(value).tooltip}>
                             <Icon
                                 name={getOptionUi(value).icon}
                                 size={28}
