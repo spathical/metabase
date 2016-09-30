@@ -21,7 +21,12 @@
 (defendpoint GET "/"
   "Fetch all `Pulses`"
   []
-  (filter models/can-read? (pulse/retrieve-pulses)))
+  (for [pulse (pulse/retrieve-pulses)
+        :let  [can-read?  (models/can-read? pulse)
+               can-write? (models/can-read? pulse)]
+        :when (or can-read?
+                  can-write?)]
+    (assoc pulse :read_only (not can-write?))))
 
 
 (defn- check-card-read-permissions [cards]

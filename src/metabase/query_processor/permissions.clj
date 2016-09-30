@@ -71,7 +71,7 @@
 
 ;;; ------------------------------------------------------------ Permissions for Native Queries ------------------------------------------------------------
 
-(defn- throw-if-cannot-run-new-native-query-referencing-db
+(defn throw-if-cannot-run-new-native-query-referencing-db
   "Throw an exception if User with USER-ID doesn't have native query *readwrite* permissions for DATABASE."
   [user-id {database-id :id, database-name :name}]
   {:pre [(integer? database-id)]}

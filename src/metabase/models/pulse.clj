@@ -1,6 +1,7 @@
 (ns metabase.models.pulse
   (:require [clojure.set :as set]
             [medley.core :as m]
+            [metabase.api.common :refer [*current-user*]]
             [metabase.db :as db]
             [metabase.events :as events]
             (metabase.models [card :refer [Card]]
@@ -11,13 +12,31 @@
                              [pulse-channel :refer [PulseChannel] :as pulse-channel])
             [metabase.util :as u]))
 
-
 ;;; ------------------------------------------------------------ Perms Checking ------------------------------------------------------------
 
 (defn- perms-objects-set [pulse read-or-write]
   (set (when-let [card-ids (db/select-field :card_id PulseCard, :pulse_id (u/get-id pulse))]
          (apply set/union (for [card (db/select [Card :dataset_query], :id [:in card-ids])]
                             (i/perms-objects-set card read-or-write))))))
+
+(defn- channels-with-recipients
+  "Get the 'channels' associated with this PULSE, including recipients of those 'channels'.
+   If `:channels` is already hydrated, as it will be when using `retrieve-pulses`, this doesn't need to make any DB calls."
+  [pulse]
+  (or (:channels pulse)
+      (-> (db/select PulseChannel, :pulse_id (u/get-id pulse))
+          (hydrate :recipients))))
+
+(defn- emails
+  "Get the set of emails this PULSE will be sent to."
+  [pulse]
+  (set (for [channel   (channels-with-recipients pulse)
+             recipient (:recipients channel)]
+         (:email recipient))))
+
+(defn- can-read? [pulse]
+  (or (i/current-user-has-full-permissions? :read pulse)
+      (contains? (emails pulse) (:email @*current-user*))))
 
 
 ;;; ------------------------------------------------------------ Entity & Lifecycle ------------------------------------------------------------
@@ -40,7 +59,7 @@
           :timestamped?       (constantly true)
           :perms-objects-set  perms-objects-set
           ;; I'm not 100% sure this covers everything. If a user is subscribed to a pulse they're still allowed to know it exists, right?
-          :can-read?          (partial i/current-user-has-full-permissions? :read)
+          :can-read?          can-read?
           :can-write?         (partial i/current-user-has-full-permissions? :write)
           :pre-insert         pre-insert
           :pre-cascade-delete pre-cascade-delete}))
