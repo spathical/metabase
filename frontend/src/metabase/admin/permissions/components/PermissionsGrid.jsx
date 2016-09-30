@@ -15,8 +15,6 @@ import FixedHeaderGrid from "./FixedHeaderGrid.jsx";
 import { capitalize, pluralize } from "metabase/lib/formatting";
 import cx from "classnames";
 
-import S from "./PermissionsGrid.css";
-
 const LIGHT_BORDER = "rgb(225, 226, 227)";
 const DARK_BORDER = "rgb(161, 163, 169)";
 const BORDER_RADIUS = 4;
