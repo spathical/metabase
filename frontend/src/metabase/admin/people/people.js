@@ -6,37 +6,70 @@ import MetabaseAnalytics from "metabase/lib/analytics";
 
 import moment from "moment";
 import _ from "underscore";
+import { assoc, dissoc } from "icepick";
 
 const user = new Schema('user');
 
 // resource wrappers
-const SessionApi = new AngularResourceProxy("Session", ["forgot_password"]);
-const UserApi = new AngularResourceProxy("User", ["list", "update", "create", "delete", "update_password", "send_invite"]);
-const PermissionsApi = new AngularResourceProxy("Permissions", ["groups", "groupDetails"]);
+const SessionApi = new AngularResourceProxy("Session", [
+    "forgot_password"
+]);
+const UserApi = new AngularResourceProxy("User", [
+    "list", "update", "create", "delete", "update_password", "send_invite"
+]);
+const PermissionsApi = new AngularResourceProxy("Permissions", [
+    "groups", "groupDetails", "memberships", "createMembership", "deleteMembership"
+]);
 
 // action constants
 export const CREATE_USER = 'metabase/admin/people/CREATE_USER';
 export const DELETE_USER = 'metabase/admin/people/DELETE_USER';
 export const FETCH_USERS = 'metabase/admin/people/FETCH_USERS';
-export const GRANT_ADMIN = 'metabase/admin/people/GRANT_ADMIN';
 export const RESEND_INVITE = 'metabase/admin/people/RESEND_INVITE';
 export const RESET_PASSWORD_EMAIL = 'metabase/admin/people/RESET_PASSWORD_EMAIL';
 export const RESET_PASSWORD_MANUAL = 'metabase/admin/people/RESET_PASSWORD_MANUAL';
-export const REVOKE_ADMIN = 'metabase/admin/people/REVOKE_ADMIN';
 export const SHOW_MODAL = 'metabase/admin/people/SHOW_MODAL';
 export const UPDATE_USER = 'metabase/admin/people/UPDATE_USER';
 export const LOAD_GROUPS = 'metabase/admin/people/LOAD_GROUPS';
+export const LOAD_MEMBERSHIPS = 'metabase/admin/people/LOAD_MEMBERSHIPS';
 export const LOAD_GROUP_DETAILS = 'metabase/admin/people/LOAD_GROUP_DETAILS';
+
+export const CREATE_MEMBERSHIP = 'metabase/admin/people/CREATE_MEMBERSHIP';
+export const DELETE_MEMBERSHIP = 'metabase/admin/people/DELETE_MEMBERSHIP';
 
 
 // action creators
 
 export const showModal = createAction(SHOW_MODAL);
 
-export const loadGroups = createAction(LOAD_GROUPS, () => PermissionsApi.groups());
+export const loadGroups = createAction(LOAD_GROUPS, () =>
+    PermissionsApi.groups()
+);
 
-export const loadGroupDetails = createAction(LOAD_GROUP_DETAILS, (id) => PermissionsApi.groupDetails({ id: id}));
+export const loadGroupDetails = createAction(LOAD_GROUP_DETAILS, (id) =>
+    PermissionsApi.groupDetails({ id: id })
+);
 
+export const loadMemberships = createAction(LOAD_MEMBERSHIPS, async () =>
+    // flatten the map of user id => memberships
+    _.chain(await PermissionsApi.memberships())
+        .values().flatten()
+        .map(m => ([m.membership_id, m]))
+        .object().value()
+);
+export const createMembership = createAction(CREATE_MEMBERSHIP, async ({ userId, groupId }) => {
+    // pull the membership_id from the list of all memberships of the group
+    let groupMemberships = await PermissionsApi.createMembership({ user_id: userId, group_id: groupId });
+    return {
+        user_id: userId,
+        group_id: groupId,
+        membership_id: _.findWhere(groupMemberships, { user_id: userId }).membership_id
+    }
+});
+export const deleteMembership = createAction(DELETE_MEMBERSHIP, async ({ membershipId }) => {
+    await PermissionsApi.deleteMembership({ id: membershipId });
+    return membershipId;
+});
 
 export const createUser = createThunkAction(CREATE_USER, function(user) {
     return async function(dispatch, getState) {
@@ -77,19 +110,6 @@ export const fetchUsers = createThunkAction(FETCH_USERS, function() {
     };
 });
 
-export const grantAdmin = createThunkAction(GRANT_ADMIN, function(user) {
-    return async function(dispatch, getState) {
-        // do the update
-        let updatedUser = await UserApi.update({...user, is_superuser: true});
-        updatedUser.date_joined = (updatedUser.date_joined) ? moment(updatedUser.date_joined) : null;
-        updatedUser.last_login = (updatedUser.last_login) ? moment(updatedUser.last_login) : null;
-
-        MetabaseAnalytics.trackEvent("People Admin", "Grant Admin");
-
-        return updatedUser;
-    };
-});
-
 export const resendInvite = createThunkAction(RESEND_INVITE, function(user) {
     return async function(dispatch, getState) {
         MetabaseAnalytics.trackEvent("People Admin", "Resent Invite");
@@ -108,19 +128,6 @@ export const resetPasswordViaEmail = createThunkAction(RESET_PASSWORD_EMAIL, fun
     return async function(dispatch, getState) {
         MetabaseAnalytics.trackEvent("People Admin", "Trigger User Password Reset");
         return await SessionApi.forgot_password({email: user.email});
-    };
-});
-
-export const revokeAdmin = createThunkAction(REVOKE_ADMIN, function(user) {
-    return async function(dispatch, getState) {
-        // do the update
-        let updatedUser = await UserApi.update({...user, is_superuser: false});
-        updatedUser.date_joined = (updatedUser.date_joined) ? moment(updatedUser.date_joined) : null;
-        updatedUser.last_login = (updatedUser.last_login) ? moment(updatedUser.last_login) : null;
-
-        MetabaseAnalytics.trackEvent("People Admin", "Revoke Admin");
-
-        return updatedUser;
     };
 });
 
@@ -146,9 +153,7 @@ const users = handleActions({
     [FETCH_USERS]: { next: (state, { payload }) => ({ ...payload.entities.user }) },
     [CREATE_USER]: { next: (state, { payload: user }) => ({ ...state, [user.id]: user }) },
     [DELETE_USER]: { next: (state, { payload: user }) => _.omit(state, user.id) },
-    [GRANT_ADMIN]: { next: (state, { payload: user }) => ({ ...state, [user.id]: user }) },
-    [REVOKE_ADMIN]: { next: (state, { payload: user }) => ({ ...state, [user.id]: user }) },
-    [UPDATE_USER]: { next: (state, { payload: user }) => ({ ...state, [user.id]: user }) }
+    [UPDATE_USER]: { next: (state, { payload: user }) => ({ ...state, [user.id]: user }) },
 }, null);
 
 const groups = handleActions({
@@ -156,6 +161,18 @@ const groups = handleActions({
         payload && payload.filter(group => group.name !== "MetaBot")
     },
 }, null);
+
+const memberships = handleActions({
+    [LOAD_MEMBERSHIPS]: { next: (state, { payload: memberships }) =>
+        memberships
+    },
+    [CREATE_MEMBERSHIP]: { next: (state, { payload: membership }) =>
+        assoc(state, membership.membership_id, membership)
+    },
+    [DELETE_MEMBERSHIP]: { next: (state, { payload: membershipId }) =>
+        dissoc(state, membershipId)
+    },
+}, {});
 
 const group = handleActions({
     [LOAD_GROUP_DETAILS]: { next: (state, { payload }) => payload },
@@ -165,5 +182,6 @@ export default combineReducers({
     modal,
     users,
     groups,
-    group
+    group,
+    memberships
 });

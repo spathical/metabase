@@ -17,7 +17,7 @@ import Tooltip from "metabase/components/Tooltip.jsx";
 
 import EditUserForm from "../components/EditUserForm.jsx";
 import UserActionsSelect from "../components/UserActionsSelect.jsx";
-import UserRoleSelect from "../components/UserRoleSelect.jsx";
+import UserGroupSelect from "../components/UserGroupSelect.jsx";
 
 export const MODAL_ADD_PERSON = 'MODAL_ADD_PERSON';
 export const MODAL_EDIT_DETAILS = 'MODAL_EDIT_DETAILS';
@@ -29,25 +29,28 @@ export const MODAL_RESET_PASSWORD_EMAIL = 'MODAL_RESET_PASSWORD_EMAIL';
 export const MODAL_USER_ADDED_WITH_INVITE = 'MODAL_USER_ADDED_WITH_INVITE';
 export const MODAL_USER_ADDED_WITH_PASSWORD = 'MODAL_USER_ADDED_WITH_PASSWORD';
 
-import { getUsers, getModal } from "../selectors";
+import { getUsers, getModal, getGroups } from "../selectors";
 import {
     createUser,
     deleteUser,
     fetchUsers,
-    grantAdmin,
     resetPasswordManually,
     resetPasswordViaEmail,
-    revokeAdmin,
     showModal,
     updateUser,
-    resendInvite
+    resendInvite,
+    loadGroups,
+    loadMemberships,
+    createMembership,
+    deleteMembership,
 } from "../people";
 
 const mapStateToProps = (state, props) => {
     return {
         users: getUsers(state, props),
         modal: getModal(state, props),
-        user: state.currentUser
+        user: state.currentUser,
+        groups: getGroups(state, props)
     }
 }
 
@@ -55,13 +58,15 @@ const mapDispatchToProps = {
     createUser,
     deleteUser,
     fetchUsers,
-    grantAdmin,
     resetPasswordManually,
     resetPasswordViaEmail,
-    revokeAdmin,
     showModal,
     updateUser,
-    resendInvite
+    resendInvite,
+    loadGroups,
+    loadMemberships,
+    createMembership,
+    deleteMembership
 };
 
 @connect(mapStateToProps, mapDispatchToProps)
@@ -76,40 +81,31 @@ export default class PeopleListingApp extends Component {
     static propTypes = {
         user: PropTypes.object.isRequired,
         users: PropTypes.object,
+        groups: PropTypes.array,
         modal: PropTypes.object,
         createUser: PropTypes.func.isRequired,
         deleteUser: PropTypes.func.isRequired,
         fetchUsers: PropTypes.func.isRequired,
-        grantAdmin: PropTypes.func.isRequired,
         resetPasswordManually: PropTypes.func.isRequired,
         resetPasswordViaEmail: PropTypes.func.isRequired,
-        revokeAdmin: PropTypes.func.isRequired,
         showModal: PropTypes.func.isRequired,
         updateUser: PropTypes.func.isRequired,
         resendInvite: PropTypes.func.isRequired,
+        loadGroups: PropTypes.func.isRequired,
+        loadMemberships: PropTypes.func.isRequired,
+        createMembership: PropTypes.func.isRequired,
+        deleteMembership: PropTypes.func.isRequired,
     };
 
     async componentDidMount() {
         try {
-            await this.props.fetchUsers();
+            await Promise.all([
+                this.props.fetchUsers(),
+                this.props.loadGroups(),
+                this.props.loadMemberships()
+            ]);
         } catch (error) {
             this.setState({ error });
-        }
-    }
-
-    onRoleChange(user, roleDef) {
-        if (roleDef.id === "user" && user.is_superuser) {
-            // check that this isn't the last admin in the system
-            let admins = _.pick(this.props.users, function(value, key, object) {
-                return value.is_superuser;
-            });
-
-            if (admins && _.keys(admins).length > 1) {
-                this.props.revokeAdmin(user);
-            }
-
-        } else if (roleDef.id === "admin" && !user.is_superuser) {
-            this.props.grantAdmin(user);
         }
     }
 
@@ -389,7 +385,7 @@ export default class PeopleListingApp extends Component {
     }
 
     render() {
-        let { modal, users } = this.props;
+        let { modal, users, groups } = this.props;
         let { error } = this.state;
 
         users = _.values(users).sort((a, b) => (b.date_joined - a.date_joined));
@@ -409,14 +405,14 @@ export default class PeopleListingApp extends Component {
                                     <th>Name</th>
                                     <th></th>
                                     <th>Email</th>
-                                    <th>Role</th>
-                                    <th>Last Seen</th>
+                                    <th>Groups</th>
+                                    <th>Last Login</th>
                                     <th></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 { users.map(user =>
-                                <tr>
+                                <tr key={user.id}>
                                     <td><span className="text-white inline-block"><UserAvatar background={(user.is_superuser) ? "bg-purple" : "bg-brand"} user={user} /></span> <span className="ml2 text-bold">{user.common_name}</span></td>
                                     <td>
                                       {user.google_auth ?
@@ -426,9 +422,12 @@ export default class PeopleListingApp extends Component {
                                     </td>
                                     <td>{user.email}</td>
                                     <td>
-                                        <UserRoleSelect
+                                        <UserGroupSelect
                                             user={user}
-                                            onChangeFn={this.onRoleChange.bind(this)} />
+                                            groups={groups}
+                                            createMembership={this.props.createMembership}
+                                            deleteMembership={this.props.deleteMembership}
+                                        />
                                     </td>
                                     <td>{ user.last_login ? user.last_login.fromNow() : "Never" }</td>
                                     <td className="text-right">

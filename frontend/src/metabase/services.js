@@ -621,6 +621,10 @@ CoreServices.factory('Permissions', ['$resource', function($resource) {
             method: 'POST',
             url: '/api/permissions/group'
         },
+        memberships: {
+            method: 'GET',
+            url: '/api/permissions/membership',
+        },
         createMembership: {
             method: 'POST',
             url: '/api/permissions/membership',

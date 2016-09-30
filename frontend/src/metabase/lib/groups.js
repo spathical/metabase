@@ -1,10 +1,10 @@
 
 export function isDefaultGroup(group) {
-    return group.name === "Default"; // FIXME: "All Users"
+    return group.name === "All Users";
 }
 
 export function isAdminGroup(group) {
-    return group.name === "Admin"; // FIXME: "Administrators";
+    return group.name === "Administrators";
 }
 
 export function canEditPermissions(group) {
