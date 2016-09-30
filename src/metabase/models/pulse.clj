@@ -11,28 +11,17 @@
             [metabase.util :as u]))
 
 
+;;; ------------------------------------------------------------ Entity & Lifecycle ------------------------------------------------------------
+
 (i/defentity Pulse :pulse)
 
 (defn- pre-insert [pulse]
   (let [defaults {:public_perms perms-readwrite}]
     (merge defaults pulse)))
 
-(defn ^:hydrate channels
-  "Return the `PulseChannels` associated with this PULSE."
-  [{:keys [id]}]
-  (db/select PulseChannel, :pulse_id id))
-
 (defn- pre-cascade-delete [{:keys [id]}]
   (db/cascade-delete! PulseCard :pulse_id id)
   (db/cascade-delete! PulseChannel :pulse_id id))
-
-(defn ^:hydrate cards
-  "Return the `Cards` associated with this PULSE."
-  [{:keys [id]}]
-  (db/select [Card :id :name :description :display]
-    (db/join [Card :id] [PulseCard :card_id])
-    (db/qualify PulseCard :pulse_id) id
-    {:order-by [[(db/qualify PulseCard :position) :asc]]}))
 
 (u/strict-extend (class Pulse)
   i/IEntity
@@ -46,7 +35,43 @@
           :pre-cascade-delete pre-cascade-delete}))
 
 
-;; ## Persistence Functions
+;;; ------------------------------------------------------------ Hydration ------------------------------------------------------------
+
+(defn ^:hydrate channels
+  "Return the `PulseChannels` associated with this PULSE."
+  [{:keys [id]}]
+  (db/select PulseChannel, :pulse_id id))
+
+
+(defn ^:hydrate cards
+  "Return the `Cards` associated with this PULSE."
+  [{:keys [id]}]
+  (db/select [Card :id :name :description :display]
+    (db/join [Card :id] [PulseCard :card_id])
+    (db/qualify PulseCard :pulse_id) id
+    {:order-by [[(db/qualify PulseCard :position) :asc]]}))
+
+
+;;; ------------------------------------------------------------ Pulse Fetching Helper Fns ------------------------------------------------------------
+
+(defn retrieve-pulse
+  "Fetch a single `Pulse` by its ID value."
+  [id]
+  {:pre [(integer? id)]}
+  (-> (Pulse id)
+      (hydrate :creator :cards [:channels :recipients])
+      (m/dissoc-in [:details :emails])))
+
+
+(defn retrieve-pulses
+  "Fetch all `Pulses`."
+  []
+  (for [pulse (-> (db/select Pulse, {:order-by [[:name :asc]]})
+                  (hydrate :creator :cards [:channels :recipients]))]
+    (m/dissoc-in pulse [:details :emails])))
+
+
+;;; ------------------------------------------------------------ Other Persistence Functions ------------------------------------------------------------
 
 (defn update-pulse-cards!
   "Update the `PulseCards` for a given PULSE.
@@ -110,44 +135,6 @@
     (doseq [[channel-type _] pulse-channel/channel-types]
       (handle-channel channel-type))))
 
-(defn retrieve-pulse
-  "Fetch a single `Pulse` by its ID value."
-  [id]
-  {:pre [(integer? id)]}
-  (-> (Pulse id)
-      (hydrate :creator :cards [:channels :recipients])
-      (m/dissoc-in [:details :emails])))
-
-(defn retrieve-pulses
-  "Fetch all `Pulses`."
-  []
-  (for [pulse (-> (db/select Pulse, {:order-by [[:name :asc]]})
-                  (hydrate :creator :cards [:channels :recipients]))]
-    (m/dissoc-in pulse [:details :emails])))
-
-(defn update-pulse!
-  "Update an existing `Pulse`, including all associated data such as: `PulseCards`, `PulseChannels`, and `PulseChannelRecipients`.
-
-   Returns the updated `Pulse` or throws an Exception."
-  [{:keys [id name cards channels] :as pulse}]
-  {:pre [(integer? id)
-         (string? name)
-         (sequential? cards)
-         (> (count cards) 0)
-         (every? integer? cards)
-         (coll? channels)
-         (every? map? channels)]}
-  (db/transaction
-    ;; update the pulse itself
-    (db/update! Pulse id, :name name)
-    ;; update cards (only if they changed)
-    (when (not= cards (map :card_id (db/select [PulseCard :card_id], :pulse_id id, {:order-by [[:position :asc]]})))
-      (update-pulse-cards! pulse cards))
-    ;; update channels
-    (update-pulse-channels! pulse channels)
-    ;; fetch the fully updated pulse and return it (and fire off an event)
-    (->> (retrieve-pulse id)
-         (events/publish-event :pulse-update))))
 
 (defn create-pulse!
   "Create a new `Pulse` by inserting it into the database along with all associated pieces of data such as:
@@ -172,3 +159,28 @@
       (update-pulse-channels! pulse channels)
       ;; return the full Pulse (and record our create event)
       (events/publish-event :pulse-create (retrieve-pulse id)))))
+
+
+(defn update-pulse!
+  "Update an existing `Pulse`, including all associated data such as: `PulseCards`, `PulseChannels`, and `PulseChannelRecipients`.
+
+   Returns the updated `Pulse` or throws an Exception."
+  [{:keys [id name cards channels] :as pulse}]
+  {:pre [(integer? id)
+         (string? name)
+         (sequential? cards)
+         (> (count cards) 0)
+         (every? integer? cards)
+         (coll? channels)
+         (every? map? channels)]}
+  (db/transaction
+    ;; update the pulse itself
+    (db/update! Pulse id, :name name)
+    ;; update cards (only if they changed)
+    (when (not= cards (map :card_id (db/select [PulseCard :card_id], :pulse_id id, {:order-by [[:position :asc]]})))
+      (update-pulse-cards! pulse cards))
+    ;; update channels
+    (update-pulse-channels! pulse channels)
+    ;; fetch the fully updated pulse and return it (and fire off an event)
+    (->> (retrieve-pulse id)
+         (events/publish-event :pulse-update))))
