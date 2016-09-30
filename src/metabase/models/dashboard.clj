@@ -1,6 +1,5 @@
 (ns metabase.models.dashboard
   (:require [clojure.data :refer [diff]]
-            [metabase.api.common :refer [*current-user-permissions-set*]]
             (metabase [db :as db]
                       [events :as events])
             (metabase.models [card :as card]

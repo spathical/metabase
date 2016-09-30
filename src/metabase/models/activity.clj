@@ -19,14 +19,11 @@
    "pulse"     Pulse
    "segment"   Segment})
 
-(defn- perms-objects-set [{model :model, model-id :model_id} read-or-write]
-  ;; if the model is something we care about checking and the object exists, defer to the entity's implementation
-  (or (when-let [entity (model->entity model)]
-        (when-let [object (entity model-id)]
-          (i/perms-objects-set object read-or-write)))
-      ;; otherwise just return empty set
-      #{}))
-
+(defn- can-? [f {model :model, model-id :model_id, :as activity}]
+  (if-let [object (when-let [entity (model->entity model)]
+                    (entity model-id))]
+    (f object)
+    true))
 
 
 ;;; ------------------------------------------------------------ Entity & Lifecycle ------------------------------------------------------------
@@ -42,9 +39,8 @@
   i/IEntity
   (merge i/IEntityDefaults
          {:types             (constantly {:details :json, :topic :keyword})
-          :perms-objects-set perms-objects-set
-          :can-read?         (partial i/current-user-has-full-permissions? :read)
-          :can-write?        (partial i/current-user-has-full-permissions? :write)
+          :can-read?         (partial can-? i/can-read?)
+          :can-write?        (partial can-? i/can-write?)
           :pre-insert        pre-insert}))
 
 
