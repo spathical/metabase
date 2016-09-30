@@ -138,7 +138,8 @@
 (defn ^Boolean set-has-full-permissions-for-set?
   "Do the permissions paths in PERMISSIONS-SET grant *full* access to all the object paths in OBJECT-PATHS-SET?"
   [permissions-set object-paths-set]
-  {:pre [(is-permissions-set? permissions-set) (is-permissions-set? object-paths-set)]}
+  {:pre [(or (is-permissions-set? permissions-set) (println "Invalid permissions-set:" permissions-set))
+         (or (is-permissions-set? object-paths-set) (println "Invalid object-paths-set:" object-paths-set))]} ; NOCOMMIT
   (u/prog1 (every? (partial set-has-full-permissions? permissions-set)
                    object-paths-set)
     ;; NOCOMMIT
@@ -148,7 +149,8 @@
   "Do the permissions paths in PERMISSIONS-SET grant *partial* access to all the object paths in OBJECT-PATHS-SET?
    (PERMISSIONS-SET must grant partial access to *every* object in OBJECT-PATH-SETS set)."
   [permissions-set object-paths-set]
-  {:pre [(is-permissions-set? permissions-set) (is-permissions-set? object-paths-set)]}
+  {:pre [(or (is-permissions-set? permissions-set) (println "Invalid permissions-set:" permissions-set))
+         (or (is-permissions-set? object-paths-set) (println "Invalid object-paths-set:" object-paths-set))]} ; NOCOMMIT
   (every? (partial set-has-partial-permissions? permissions-set)
           object-paths-set))
 
