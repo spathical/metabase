@@ -13,6 +13,8 @@ import UserAvatar from "metabase/components/UserAvatar.jsx";
 import AdminContentTable from "metabase/components/AdminContentTable.jsx";
 import AdminPaneLayout from "metabase/components/AdminPaneLayout.jsx";
 
+import Typeahead from "metabase/hoc/Typeahead.jsx";
+
 import AddRow from "./AddRow.jsx";
 
 const PermissionsAPI = new AngularResourceProxy("Permissions", ["createMembership", "deleteMembership"]);
@@ -40,109 +42,105 @@ const GroupDescription = ({ group }) =>
 
 // ------------------------------------------------------------ Add User Row / Autocomplete ------------------------------------------------------------
 
-function AddMemberAutocompleteSuggestion({ user, color, selected, onClick }) {
-    return (
-        <div className={cx("px2 py1 cursor-pointer", {"bg-brand": selected})} onClick={onClick} >
-            <span className="inline-block text-white mr2">
-                <UserAvatar background={color} user={user} />
-            </span>
-            <span className={cx("h3", {"text-white": selected})}>
-                {user.common_name}
-            </span>
-        </div>
-    );
-}
+const AddMemberAutocompleteSuggestion = ({ user, color, selected, onClick }) =>
+    <div className={cx("px2 py1 cursor-pointer", {"bg-brand": selected})} onClick={onClick} >
+        <span className="inline-block text-white mr2">
+            <UserAvatar background={color} user={user} />
+        </span>
+        <span className={cx("h3", {"text-white": selected})}>
+            {user.common_name}
+        </span>
+    </div>
 
 const COLORS = ['bg-error', 'bg-purple', 'bg-brand', 'bg-gold', 'bg-green'];
 
-function AddMemberAutocompleteSuggestions({ suggestions, selectedUser, onSuggestionAccepted }) {
-    return (
-        <Popover className="bordered" hasArrow={false} targetOffsetY={2} targetOffsetX={0} horizontalAttachments={["left"]}>
-            {suggestions && suggestions.map((user, index) =>
-                <AddMemberAutocompleteSuggestion key={index} user={user} color={COLORS[(index % COLORS.length)]}
-                                                 selected={selectedUser && user.id === selectedUser.id}
-                                                 onClick={onSuggestionAccepted.bind(null, user)} />
-             )}
-        </Popover>
-    );
-}
+const AddMemberTypeahead = Typeahead({
+    optionFilter: (text, user) => (user.common_name || "").toLowerCase().includes(text.toLowerCase()),
+    optionIsEqual: (userA, userB) => userA.id === userB.id
+})(({
+    suggestions,
+    selectedSuggestion,
+    onSuggestionAccepted
+}) =>
+    <Popover className="bordered" hasArrow={false} targetOffsetY={2} targetOffsetX={0} horizontalAttachments={["left"]}>
+        {suggestions && suggestions.map((user, index) =>
+            <AddMemberAutocompleteSuggestion
+                key={index}
+                user={user}
+                color={COLORS[(index % COLORS.length)]}
+                selected={selectedSuggestion && user.id === selectedSuggestion.id}
+                onClick={onSuggestionAccepted.bind(null, user)}
+            />
+         )}
+    </Popover>
+);
 
-/* const KEYCODE_TAB   =  9;*/
-const KEYCODE_ENTER = 13;
-const KEYCODE_UP    = 38;
-const KEYCODE_DOWN  = 40;
-
-function AddUserRow({ suggestions, text, selectedUser, onCancel, onDone, onDownPressed, onUpPressed, onTextChange, onSuggestionAccepted }) {
-
-    const showAutoComplete = suggestions && suggestions.length;
-
-    function onKeyDown(e) {
-        if (e.keyCode !== KEYCODE_UP && e.keyCode !== KEYCODE_DOWN && e.keyCode !== KEYCODE_ENTER) return;
-
-        e.preventDefault();
-        switch (e.keyCode) {
-            case KEYCODE_UP: onUpPressed(); return;
-            case KEYCODE_DOWN: onDownPressed(); return;
-            case KEYCODE_ENTER: onSuggestionAccepted(selectedUser); return;
-        }
-    }
-
-    return (
-        <tr>
-            <td colSpan="3" style={{ padding: 0 }}>
-                <AddRow
-                    value={text}
-                    isValid={selectedUser}
-                    placeholder="Julie McMemberson"
-                    onKeyDown={onKeyDown}
-                    onChange={(e) => onTextChange(e.target.value)}
-                    onDone={onDone}
-                    onCancel={onCancel}
-                >
-                    { showAutoComplete ?
-                        <div className="absolute bottom left">
-                             <AddMemberAutocompleteSuggestions suggestions={suggestions} selectedUser={selectedUser} onSuggestionAccepted={onSuggestionAccepted} />
-                        </div>
-                    : null }
-                </AddRow>
-            </td>
-        </tr>
-    );
-}
+const AddUserRow = ({ users, text, selectedUsers, onCancel, onDone, onTextChange, onSuggestionAccepted, onRemoveUserFromSelection }) =>
+    <tr>
+        <td colSpan="3" style={{ padding: 0 }}>
+            <AddRow
+                value={text}
+                isValid={selectedUsers.length}
+                placeholder="Julie McMemberson"
+                onChange={(e) => onTextChange(e.target.value)}
+                onDone={onDone}
+                onCancel={onCancel}
+            >
+                { selectedUsers.map(user =>
+                    <div className="bg-slate-light p1 px2 mr1 rounded flex align-center">
+                        {user.common_name}
+                        <Icon className="pl1 cursor-pointer text-slate text-grey-4-hover" name="close" onClick={() => onRemoveUserFromSelection(user)} />
+                    </div>
+                )}
+                <div className="absolute bottom left">
+                     <AddMemberTypeahead
+                        value={text}
+                        options={Object.values(users)}
+                        onSuggestionAccepted={onSuggestionAccepted}
+                    />
+                </div>
+            </AddRow>
+        </td>
+    </tr>
 
 
 // ------------------------------------------------------------ Users Table ------------------------------------------------------------
 
-function UserRow({ user, showRemoveButton, onRemoveUserClicked }) {
-    return (
-        <tr>
-            <td>{user.first_name + " " + user.last_name}</td>
-            <td>{user.email}</td>
-            {showRemoveButton ? (
-                 <td className="text-right cursor-pointer" onClick={onRemoveUserClicked.bind(null, user)}>
-                     <Icon name="close" className="text-grey-1" size={16} />
-                 </td>
-            ) : null}
-        </tr>
-    );
-}
+const UserRow = ({ user, showRemoveButton, onRemoveUserClicked }) =>
+    <tr>
+        <td>{user.first_name + " " + user.last_name}</td>
+        <td>{user.email}</td>
+        {showRemoveButton ? (
+             <td className="text-right cursor-pointer" onClick={onRemoveUserClicked.bind(null, user)}>
+                 <Icon name="close" className="text-grey-1" size={16} />
+             </td>
+        ) : null}
+    </tr>
 
-function MembersTable({ group, members, userSuggestions, showAddUser, text, selectedUser, onAddUserCancel, onAddUserDone, onAddUserTextChange,
-                        onUserSuggestionAccepted, onAddUserUpPressed, onAddUserDownPressed, onRemoveUserClicked }) {
-
+const MembersTable = ({
+    group, members, users, showAddUser, text, selectedUsers,
+    onAddUserCancel, onAddUserDone, onAddUserTextChange,
+    onUserSuggestionAccepted, onRemoveUserClicked, onRemoveUserFromSelection
+}) => {
     // you can't remove people from Default and you can't remove the last user from Admin
-    const showRemoveMemeberButton = group.name !== "Default" && (group.name !== "Admin" || members.length > 1);
+    const showRemoveMemeberButton = !isDefaultGroup(group) && (!isAdminGroup(group) || members.length > 1);
 
     return (
         <div>
             <AdminContentTable columnTitles={["Members", "Email"]}>
-                {showAddUser ? (
-                    <AddUserRow suggestions={userSuggestions} text={text} selectedUser={selectedUser} onCancel={onAddUserCancel}
-                                onDone={onAddUserDone} onDownPressed={onAddUserDownPressed} onUpPressed={onAddUserUpPressed}
-                                onTextChange={onAddUserTextChange} onSuggestionAccepted={onUserSuggestionAccepted}
+                { showAddUser ? (
+                    <AddUserRow
+                        users={users}
+                        text={text}
+                        selectedUsers={selectedUsers}
+                        onCancel={onAddUserCancel}
+                        onDone={onAddUserDone}
+                        onTextChange={onAddUserTextChange}
+                        onSuggestionAccepted={onUserSuggestionAccepted}
+                        onRemoveUserFromSelection={onRemoveUserFromSelection}
                      />
                  ) : null}
-                {members && members.map((user, index) =>
+                { members && members.map((user, index) =>
                     <UserRow key={index} user={user} showRemoveButton={showRemoveMemeberButton} onRemoveUserClicked={onRemoveUserClicked} />
                 )}
             </AdminContentTable>
@@ -152,12 +150,6 @@ function MembersTable({ group, members, userSuggestions, showAddUser, text, sele
 
 // ------------------------------------------------------------ Logic ------------------------------------------------------------
 
-function filterUsers(users, text) {
-    if (!text || !text.length) return users;
-
-    text = text.toLowerCase();
-    return _.filter(users, (user) => user.common_name && user.common_name.toLowerCase().includes(text));
-}
 
 
 export default class GroupDetail extends Component {
@@ -166,9 +158,8 @@ export default class GroupDetail extends Component {
         this.state = {
             addUserVisible: false,
             text: "",
-            selectedUser: null,
-            userSuggestions: [],
-            members: null
+            selectedUsers: [],
+            members: null,
         };
     }
 
@@ -182,91 +173,59 @@ export default class GroupDetail extends Component {
         this.setState({
             addUserVisible: false,
             text: "",
-            selectedUser: null
+            selectedUsers: []
         });
     }
 
-    onAddUserDone() {
-        PermissionsAPI.createMembership({group_id: this.props.group.id, user_id: this.state.selectedUser.id}).then((function(newMembers) {
-            this.setState({
-                members: newMembers,
-                addUserVisible: false,
-                text: "",
-                selectedUser: null
-            });
-        }).bind(this), function(error) {
-            console.error("Error adding user:", error);
-            if (error.data && typeof error.data === "string") alert(error.data);
-        });
-    }
-
-    indexOfSelectedUser() {
-        return _.findIndex(this.state.userSuggestions, (user) => user.id === this.state.selectedUser.id);
-    }
-
-    setSelectedUserIndex(newIndex) {
-        const numSuggestions = this.state.userSuggestions.length;
-        if (newIndex < 0) newIndex = numSuggestions - 1;
-        if (newIndex >= numSuggestions) newIndex = 0;
-
+    async onAddUserDone() {
         this.setState({
-            selectedUser: this.state.userSuggestions[newIndex]
+            addUserVisible: false,
+            text: "",
+            selectedUsers: []
         });
-    }
-
-    onAddUserUpPressed() {
-        if (!this.state.userSuggestions.length) return;
-
-        if (!this.state.selectedUser) {
-            this.setState({
-                selectedUser: this.state.userSuggestions[(this.state.userSuggestions.length - 1)]
-            });
-            return;
+        try {
+            await Promise.all(this.state.selectedUsers.map(async (user) => {
+                let members = await PermissionsAPI.createMembership({group_id: this.props.group.id, user_id: user.id});
+                this.setState({ members });
+            }));
+        } catch (error) {
+            console.error("Error adding user:", error);
+            if (error.data && typeof error.data === "string") {
+                alert(error.data);
+            }
         }
-
-        this.setSelectedUserIndex(this.indexOfSelectedUser() - 1);
-    }
-
-    onAddUserDownPressed() {
-        if (!this.state.userSuggestions.length) return;
-
-        if (!this.state.selectedUser) {
-            this.setState({
-                selectedUser: this.state.userSuggestions[0]
-            });
-            return;
-        }
-
-        this.setSelectedUserIndex(this.indexOfSelectedUser() + 1);
     }
 
     onAddUserTextChange(newText) {
         this.setState({
             text: newText,
-            userSuggestions: filterUsers(this.props.users, newText)
         });
     }
 
     onUserSuggestionAccepted(user) {
         this.setState({
-            selectedUser: user,
-            text: user.common_name,
-            userSuggestions: []
+            selectedUsers: this.state.selectedUsers.concat(user),
+            text: "",
         });
     }
 
-    onRemoveUserClicked(membership) {
-        const members = this.getMembers();
-
-        PermissionsAPI.deleteMembership({id: membership.membership_id}).then((function () {
-            const newMembers = _.reject(members, (m) => m.user_id === membership.user_id);
-            this.setState({
-                members: newMembers
-            });
-        }).bind(this), function(error) {
-            console.error("Error deleting PermissionsMembership:", error);
-            if (error.data && typeof error.data === "string") alert(error.data);
+    onRemoveUserFromSelection(user) {
+        this.setState({
+            selectedUsers: this.state.selectedUsers.filter(u => u.id !== user.id),
         });
+    }
+
+    async onRemoveUserClicked(membership) {
+        try {
+            await PermissionsAPI.deleteMembership({ id: membership.membership_id })
+            const newMembers = _.reject(this.getMembers(), (m) => m.user_id === membership.user_id);
+            this.setState({ members: newMembers });
+        } catch (error) {
+            console.error("Error deleting PermissionsMembership:", error);
+            if (error.data && typeof error.data === "string") {
+                alert(error.data);
+            }
+        }
     }
 
     // TODO - bad!
@@ -278,35 +237,38 @@ export default class GroupDetail extends Component {
     render() {
         // users = array of all users for purposes of adding new users to group
         // [group.]members = array of users currently in the group
-        let { group, groups, users } = this.props;
-        group = group || {};
-        groups = groups || [];
-        users = users || [];
-
+        let { group, users } = this.props;
+        const { text, selectedUsers, addUserVisible } = this.state;
         const members = this.getMembers();
-        const userSuggestions = this.state.text && this.state.text.length ? this.state.userSuggestions : users;
+
+        group = group || {};
+        users = users || {};
+
+        let usedUsers = {};
+        for (const user of members) { usedUsers[user.user_id] = true; }
+        for (const user of selectedUsers) { usedUsers[user.id] = true; }
+        const filteredUsers = Object.values(users).filter(user => !usedUsers[user.id])
 
         return (
             <AdminPaneLayout
                 title={group.name}
                 buttonText="Add members"
                 buttonAction={canEditMembership(group) ? this.onAddUsersClicked.bind(this) : null}
-                buttonDisabled={this.state.addUserVisible}
+                buttonDisabled={addUserVisible}
             >
                 <GroupDescription group={group} />
                 <MembersTable
                     group={group}
                     members={members}
-                    userSuggestions={userSuggestions}
-                    showAddUser={this.state.addUserVisible}
-                    text={this.state.text || ""}
-                    selectedUser={this.state.selectedUser}
+                    users={filteredUsers}
+                    showAddUser={addUserVisible}
+                    text={text || ""}
+                    selectedUsers={selectedUsers}
                     onAddUserCancel={this.onAddUserCanceled.bind(this)}
                     onAddUserDone={this.onAddUserDone.bind(this)}
                     onAddUserTextChange={this.onAddUserTextChange.bind(this)}
                     onUserSuggestionAccepted={this.onUserSuggestionAccepted.bind(this)}
-                    onAddUserUpPressed={this.onAddUserUpPressed.bind(this)}
-                    onAddUserDownPressed={this.onAddUserDownPressed.bind(this)}
+                    onRemoveUserFromSelection={this.onRemoveUserFromSelection.bind(this)}
                     onRemoveUserClicked={this.onRemoveUserClicked.bind(this)}
                 />
             </AdminPaneLayout>

@@ -3,9 +3,10 @@ import React, { Component, PropTypes } from "react";
 import cx from "classnames";
 
 const AddRow = ({ value, isValid, placeholder, onKeyDown, onChange, onDone, onCancel, children }) =>
-    <div className="my2 pl2 p1 bordered border-brand rounded relative flex align-center">
+    <div className="my2 pl1 p1 bordered border-brand rounded relative flex align-center">
+        {children}
         <input
-            className="input--borderless h3 flex-full"
+            className="input--borderless h3 ml1 flex-full"
             type="text"
             value={value}
             placeholder={placeholder}
@@ -13,7 +14,6 @@ const AddRow = ({ value, isValid, placeholder, onKeyDown, onChange, onDone, onCa
             onKeyDown={onKeyDown}
             onChange={onChange}
         />
-        {children}
         <span className="link no-decoration cursor-pointer" onClick={onCancel}>
             Cancel
         </span>
