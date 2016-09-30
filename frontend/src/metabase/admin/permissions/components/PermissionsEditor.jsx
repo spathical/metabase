@@ -5,6 +5,7 @@ import Confirm from "metabase/components/Confirm.jsx";
 import PermissionsGrid from "../components/PermissionsGrid.jsx";
 import PermissionsConfirm from "../components/PermissionsConfirm.jsx";
 import EditBar from "metabase/components/EditBar.jsx";
+import Breadcrumbs from "metabase/components/Breadcrumbs.jsx";
 
 import cx from "classnames";
 
@@ -38,9 +39,12 @@ const PermissionsEditor = ({ grid, onUpdatePermission, onSave, onCancel, isDirty
                     ]}
                 />
             }
-            <div className="wrapper py3">
-                { /* TODO - breadcrumbs here */ }
-                <h2>Permissions</h2>
+            <div className="wrapper pt2">
+                { grid && grid.crumbs ?
+                    <Breadcrumbs className="py1" crumbs={grid.crumbs} />
+                :
+                    <h2>Permissions</h2>
+                }
             </div>
             <PermissionsGrid
                 className="flex-full"
