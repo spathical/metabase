@@ -7,12 +7,13 @@ import { AngularResourceProxy } from "metabase/lib/redux";
 import { isAdminGroup, isDefaultGroup, canEditMembership } from "metabase/lib/groups";
 
 import Icon from "metabase/components/Icon.jsx";
-import Input from "metabase/components/Input.jsx";
 import Popover from "metabase/components/Popover.jsx";
 import UserAvatar from "metabase/components/UserAvatar.jsx";
 
 import AdminContentTable from "metabase/components/AdminContentTable.jsx";
 import AdminPaneLayout from "metabase/components/AdminPaneLayout.jsx";
+
+import AddRow from "./AddRow.jsx";
 
 const PermissionsAPI = new AngularResourceProxy("Permissions", ["createMembership", "deleteMembership"]);
 
@@ -56,7 +57,7 @@ const COLORS = ['bg-error', 'bg-purple', 'bg-brand', 'bg-gold', 'bg-green'];
 
 function AddMemberAutocompleteSuggestions({ suggestions, selectedUser, onSuggestionAccepted }) {
     return (
-        <Popover className="bordered" hasArrow={false} targetOffsetY={2} horizontalAttachments={["left"]}>
+        <Popover className="bordered" hasArrow={false} targetOffsetY={2} targetOffsetX={0} horizontalAttachments={["left"]}>
             {suggestions && suggestions.map((user, index) =>
                 <AddMemberAutocompleteSuggestion key={index} user={user} color={COLORS[(index % COLORS.length)]}
                                                  selected={selectedUser && user.id === selectedUser.id}
@@ -87,23 +88,23 @@ function AddUserRow({ suggestions, text, selectedUser, onCancel, onDone, onDownP
     }
 
     return (
-        <tr className="bordered border-brand rounded">
-            <td>
-                <Input className="AdminInput h3" type="text" placeholder="Julie McMemberson" autoFocus={true} value={text}
-                       onKeyDown={onKeyDown} onChange={(e) => onTextChange(e.target.value)}
-                />
-                {showAutoComplete ? (
-                     <AddMemberAutocompleteSuggestions suggestions={suggestions} selectedUser={selectedUser} onSuggestionAccepted={onSuggestionAccepted} />
-                 ) : null}
-            </td>
-            <td />
-            <td className="text-right">
-                <span className="link no-decoration cursor-pointer" onClick={onCancel}>
-                    Cancel
-                </span>
-                <button className={cx("Button ml2", {"Button--primary": !!selectedUser})} disabled={!selectedUser} onClick={onDone}>
-                    Done
-                </button>
+        <tr>
+            <td colSpan="3" style={{ padding: 0 }}>
+                <AddRow
+                    value={text}
+                    isValid={selectedUser}
+                    placeholder="Julie McMemberson"
+                    onKeyDown={onKeyDown}
+                    onChange={(e) => onTextChange(e.target.value)}
+                    onDone={onDone}
+                    onCancel={onCancel}
+                >
+                    { showAutoComplete ?
+                        <div className="absolute bottom left">
+                             <AddMemberAutocompleteSuggestions suggestions={suggestions} selectedUser={selectedUser} onSuggestionAccepted={onSuggestionAccepted} />
+                        </div>
+                    : null }
+                </AddRow>
             </td>
         </tr>
     );
