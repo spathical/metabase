@@ -191,7 +191,7 @@ class GroupPermissionCell extends Component {
                 { this.state.confirmText &&
                     <Modal>
                         <ConfirmContent
-                            title={this.state.confirmText}
+                            {...this.state.confirmText}
                             onAction={this.state.confirmAction}
                             onClose={() => this.setState({ confirmText: null, confirmAction: null })}
                         />

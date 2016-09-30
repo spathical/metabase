@@ -69,7 +69,9 @@ export const getTablesPermissionsGrid = createSelector(
                     },
                     confirm(groupId, entityId, value) {
                         if (getSchemasPermission(permissions, groupId, entityId) !== "controlled") {
-                            return "CHANGING THIS DB TO LIMITED LIMITED ACCESS";
+                            return {
+                                title: "Changing this database to limited access"
+                            };
                         }
                     }
                 }
@@ -119,7 +121,9 @@ export const getSchemasPermissionsGrid = createSelector(
                     },
                     confirm(groupId, entityId, value) {
                         if (getSchemasPermission(permissions, groupId, entityId) !== "controlled") {
-                            return "CHANGING THIS DB TO LIMITED LIMITED ACCESS";
+                            return {
+                                title: "Changing this database to limited access"
+                            };
                         }
                     }
                 }
@@ -161,14 +165,17 @@ export const getDatabasesPermissionsGrid = createSelector(
                     },
                     postAction(groupId, { databaseId }, value) {
                         if (value === "controlled") {
-                            return push(`/admin/permissions/databases/${databaseId}/schemas`);
+                            let database = metadata.database(databaseId);
+                            let schemas = database ? database.schemaNames() : [];
+                            if (schemas.length === 0 || (schemas.length === 1 && schemas[0] === "")) {
+                                return push(`/admin/permissions/databases/${databaseId}/tables`);
+                            } else if (schemas.length === 1) {
+                                return push(`/admin/permissions/databases/${databaseId}/schemas/${schemas[0]}/tables`);
+                            } else {
+                                return push(`/admin/permissions/databases/${databaseId}/schemas`);
+                            }
                         }
                     },
-                    confirm(groupId, entityId, value) {
-                        if (getSchemasPermission(permissions, groupId, entityId) !== "controlled" && value === "controlled") {
-                            return "CHANGING THIS DB TO LIMITED ACCESS";
-                        }
-                    }
                 },
                 "native": {
                     options(groupId, entityId) {
@@ -189,7 +196,10 @@ export const getDatabasesPermissionsGrid = createSelector(
                             getNativePermission(permissions, groupId, entityId) !== "write" &&
                             getSchemasPermission(permissions, groupId, entityId) !== "all"
                         ) {
-                            return "ENABLING RAW QUERY WRITING GIVES THIS GROUP ACCESS TO ALL DATA IN THIS DATABASE";
+                            return {
+                                title: "Allow Raw Query Writing",
+                                message: "This will also change this group's data access to Unrestricted for this database."
+                            };
                         }
                     }
                 },
