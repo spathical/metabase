@@ -70,7 +70,7 @@
   {cardId             [Required Integer]
    parameter_mappings [ArrayOfMaps]}
   (write-check Dashboard id)
-  (check-400 (db/exists? Card :id cardId))
+  (read-check Card cardId)
   (let [defaults       {:dashboard_id id
                         :card_id      cardId
                         :creator_id   *current-user-id*
@@ -95,7 +95,7 @@
   [id :as {{:keys [cards]} :body}]
   (write-check Dashboard id)
   (let [dashcard-ids (db/select-ids DashboardCard, :dashboard_id id)]
-    (doseq [{dashcard-id :id :as dashboard-card} cards]
+    (doseq [{dashcard-id :id, :as dashboard-card} cards]
       ;; ensure the dashcard we are updating is part of the given dashboard
       (when (contains? dashcard-ids dashcard-id)
         (update-dashboard-card! (update dashboard-card :series #(filter identity (map :id %)))))))
