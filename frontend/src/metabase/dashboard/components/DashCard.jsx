@@ -97,7 +97,7 @@ export default class DashCard extends Component {
         let errorMessage, errorIcon;
         if (_.any(errors, e => e && e.status === 403)) {
             errorMessage = ERROR_MESSAGE_PERMISSION;
-            errorIcon = "warning";
+            errorIcon = "key";
         } else if (errors.length > 0 || this.state.error) {
             errorMessage = ERROR_MESSAGE_GENERIC;
             errorIcon = "warning";
