@@ -15,11 +15,9 @@
 ;;; ------------------------------------------------------------ Perms Checking ------------------------------------------------------------
 
 (defn- perms-objects-set [pulse read-or-write]
-  (u/prog1 (set (when-let [card-ids (db/select-field :card_id PulseCard, :pulse_id (u/get-id pulse))]
-                  (apply set/union (for [card (db/select [Card :dataset_query], :id [:in card-ids])]
-                                     (i/perms-objects-set card read-or-write)))))
-    (println "perms-object-set:" <>) ; NOCOMMIT
-    ))
+  (set (when-let [card-ids (db/select-field :card_id PulseCard, :pulse_id (u/get-id pulse))]
+         (apply set/union (for [card (db/select [Card :dataset_query], :id [:in card-ids])]
+                            (i/perms-objects-set card read-or-write))))))
 
 
 ;;; ------------------------------------------------------------ Entity & Lifecycle ------------------------------------------------------------
