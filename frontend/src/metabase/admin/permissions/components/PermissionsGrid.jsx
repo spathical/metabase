@@ -33,7 +33,7 @@ const getBorderStyles = ({ isFirstColumn, isLastColumn, isFirstRow, isLastRow })
     borderBottomLeftRadius: isFirstColumn && isLastRow ? BORDER_RADIUS : 0,
 })
 
-const CELL_HEIGHT = 176;
+const CELL_HEIGHT = 100;
 const CELL_WIDTH = 246;
 const HEADER_HEIGHT = 100;
 const HEADER_WIDTH = 170;
@@ -148,6 +148,7 @@ class GroupPermissionCell extends Component {
                     ref="popover"
                     disabled={!isEditable}
                     className="flex-full"
+                    triggerClasses="cursor-pointer"
                     triggerElement={
                         <Tooltip tooltip={getOptionUi(value).title}>
                             <div
@@ -156,8 +157,7 @@ class GroupPermissionCell extends Component {
                             >
                                 <Icon
                                     name={getOptionUi(value).icon}
-                                    width={28}
-                                    height={28}
+                                    size={28}
                                     style={{ color: getOptionUi(value).iconColor }}
                                 />
                             </div>
