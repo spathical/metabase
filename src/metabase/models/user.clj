@@ -171,8 +171,8 @@
   "Return a set of all permissions object paths that USER-OR-ID has been granted access to."
   [user-or-id]
   (set (when-let [user-id (u/get-id user-or-id)]
-         (map :object (db/query {:select    [:p.object]
-                                 :from      [[:permissions_group_membership :pgm]]
-                                 :left-join [[:permissions_group :pg] [:= :pgm.group_id :pg.id]
-                                             [:permissions :p]        [:= :p.group_id :pg.id]]
-                                 :where     [:= :pgm.user_id user-id]})))))
+         (map :object (db/query {:select [:p.object]
+                                 :from   [[:permissions_group_membership :pgm]]
+                                 :join   [[:permissions_group :pg] [:= :pgm.group_id :pg.id]
+                                          [:permissions :p]        [:= :p.group_id :pg.id]]
+                                 :where  [:= :pgm.user_id user-id]})))))

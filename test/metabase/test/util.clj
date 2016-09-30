@@ -9,6 +9,7 @@
                              [database :refer [Database]]
                              [field :refer [Field]]
                              [metric :refer [Metric]]
+                             [permissions-group :refer [PermissionsGroup]]
                              [pulse :refer [Pulse]]
                              [pulse-channel :refer [PulseChannel]]
                              [raw-column :refer [RawColumn]]
@@ -132,6 +133,10 @@
                                 :description "Lookin' for a blueberry"
                                 :name        "Toucans in the rainforest"
                                 :table_id    (data/id :venues)})})
+
+(u/strict-extend (class PermissionsGroup)
+  WithTempDefaults
+  {:with-temp-defaults (fn [_] {:name (random-name)})})
 
 (u/strict-extend (class Pulse)
   WithTempDefaults
