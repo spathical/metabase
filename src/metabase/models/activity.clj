@@ -10,6 +10,28 @@
             [metabase.util :as u]))
 
 
+;;; ------------------------------------------------------------ Perms Checking ------------------------------------------------------------
+
+(defn- perms-objects-set [{model :model, model-id :model_id} read-or-write]
+  (if (or (= model "install")
+          (= model "user"))
+    ;; install and user signup events are things everyone can see
+    #{}
+    ;; otherwise if the object exists defer to its entity's implementation
+    (if-let [object ((case model
+                       "card"      Card
+                       "dashboard" Dashboard
+                       "metric"    Metric
+                       "pulse"     Pulse
+                       "segment"   Segment) model-id)]
+      (i/perms-objects-set object read-or-write)
+      ;; otherwise if object doesn't exist return empty perms set
+      #{})))
+
+
+
+;;; ------------------------------------------------------------ Entity & Lifecycle ------------------------------------------------------------
+
 (i/defentity Activity :activity)
 
 (defn- pre-insert [activity]
@@ -20,10 +42,14 @@
 (u/strict-extend (class Activity)
   i/IEntity
   (merge i/IEntityDefaults
-         {:types       (constantly {:details :json, :topic :keyword})
-          :can-read?   (constantly true)
-          :can-write?  (constantly true)
-          :pre-insert  pre-insert}))
+         {:types             (constantly {:details :json, :topic :keyword})
+          :perms-objects-set perms-objects-set
+          :can-read?         (partial i/current-user-has-full-permissions? :read)
+          :can-write?        (partial i/current-user-has-full-permissions? :write)
+          :pre-insert        pre-insert}))
+
+
+;;; ------------------------------------------------------------ Etc. ------------------------------------------------------------
 
 
 ;; ## Persistence Functions
