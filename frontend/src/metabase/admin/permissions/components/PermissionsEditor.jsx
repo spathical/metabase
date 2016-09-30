@@ -16,7 +16,7 @@ const PermissionsEditor = ({ grid, onUpdatePermission, onSave, onCancel, isDirty
                 <EditBar
                     title="You've made changes to permissions."
                     buttons={[
-                        <button className="Button Button--borderless" onClick={onCancel}>Cancel</button>
+                        <button className="Button Button--borderless" onClick={onCancel}>Cancel</button>,
                         <Confirm
                             title="Save permissions?"
                             action={onSave}
@@ -24,7 +24,7 @@ const PermissionsEditor = ({ grid, onUpdatePermission, onSave, onCancel, isDirty
                             triggerClasses={cx({ disabled: !isDirty })}
                         >
                             <button className={cx("Button")}>Save Changes</button>
-                        </Confirm>,
+                        </Confirm>
                     ]}
                 />
             }
